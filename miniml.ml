@@ -48,10 +48,11 @@ let repl () =
            printf "==> %s\n" (Ex.exp_to_abstract_string resexp)
         | _ -> failwith "not handling other cases yet"
       with
-      | MP.Error -> printf "xx> parse error\n"
+      (* | MP.Error -> printf "xx> parse error\n" *)
       | Ev.EvalError msg -> printf "xx> evaluation error: %s\n" msg
       | Ev.EvalException -> printf "xx> evaluation exception\n"
-      | End_of_file -> printf "Goodbye.\n"; exit 0
+      | End_of_file -> printf "Goodbye.\n"
+      | _ -> printf "xx> parse error\n"; exit 0
     );
     flush stdout
   done

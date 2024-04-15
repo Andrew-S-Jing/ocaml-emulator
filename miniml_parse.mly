@@ -1,17 +1,17 @@
-(*
+/*
                          CS 51 Final Project
                            MiniML -- Parser
 
    This grammar is processed by menhir. See
    http://gallium.inria.fr/~fpottier/menhir/manual.html and
    https://dev.realworldocaml.org/parsing-with-ocamllex-and-menhir.html
-   for documentation of the various declarations used here.  *)
+   for documentation of the various declarations used here.  */
                   
 %{
   open Expr ;;
 %}
 
-(* Tokens *)
+/* Tokens */
 %token EOF
 %token OPEN CLOSE
 %token LET DOT IN REC
@@ -26,27 +26,27 @@
 %token <int> INT 
 %token TRUE FALSE
 
-(* Associativity and precedence *)
+/* Associativity and precedence */
 %nonassoc IF
 %left LESSTHAN EQUALS
 %left PLUS MINUS
 %left TIMES
 %nonassoc NEG
 
-(* Start symbol of the grammar and its type *)
+/* Start symbol of the grammar and its type */
 %start input
 %type <Expr.expr> input
 
-(* Grammar rules with actions to build an `expr` value as defined in
-   the `Expr` module. *)
+/* Grammar rules with actions to build an `expr` value as defined in
+   the `Expr` module. */
 %%
 input:  exp EOF                 { $1 }
 
-(* expressions *)
+/* expressions */
 exp:    exp expnoapp            { App($1, $2) }
         | expnoapp              { $1 }
 
-(* expressions except for application expressions *)
+/* expressions except for application expressions */
 expnoapp: INT                   { Num $1 }
         | TRUE                  { Bool true }
         | FALSE                 { Bool false }
