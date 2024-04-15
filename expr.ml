@@ -91,7 +91,48 @@ let subst (var_name : varid) (repl : expr) (exp : expr) : expr =
 (* exp_to_concrete_string exp -- Returns a string representation of
    the concrete syntax of the expression `exp` *)
 let exp_to_concrete_string (exp : expr) : string =
-  failwith "exp_to_concrete_string not implemented" ;;
+  let parenthensize x = "(" ^ x ^ ")" in
+  let rec to_string spaces e =
+    let to_string' = to_string spaces in
+    let str = 
+      match e with
+      | Var x -> x
+      | Num x -> string_of_int x
+      | Bool x -> string_of_bool x
+      | Unop (Negate, x) -> parenthensize ("~-" ^ to_string' x)
+      | Binop (op, x, y) ->
+          let binop_combine s =
+            parenthensize (to_string' x ^ " "
+                          ^ s ^ " "
+                          ^ to_string' y) in
+          (match op with
+           | Plus -> binop_combine "+"
+           | Minus -> binop_combine "-"
+           | Times -> binop_combine "*"
+           | Equals -> binop_combine "="
+           | LessThan -> binop_combine "<")
+      | Conditional (c, t, f) ->
+          let spaces' = spaces + 2 in
+          "if " ^ to_string' c
+          ^ " then\n" ^ to_string spaces' t
+          ^ "\n else\n" ^ to_string spaces' f
+      | Fun (v, x) ->
+          parenthensize ("fun " ^ v ^ " -> " ^ to_string' x)
+      | Let (v, p, q) ->
+          "let " ^ v ^
+          " =\n" ^ to_string (spaces + 2) p
+          ^ " in\n" ^ to_string' q
+      | Letrec (v, p, q) ->
+          "let rec " ^ v
+          ^ " =\n" ^ to_string (spaces + 2) p
+          ^ " in\n" ^ to_string' q
+      | Raise -> "raise an exception"
+      | Unassigned -> "unbound variable"
+      | App (f, x) ->
+          parenthensize (to_string' f ^ " " ^ to_string' x) in
+    String.make spaces ' ' ^ str in
+  to_string 0 exp ;;
+
      
 (* exp_to_abstract_string exp -- Return a string representation of the
    abstract syntax of the expression `exp` *)
