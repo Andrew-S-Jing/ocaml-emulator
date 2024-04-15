@@ -96,10 +96,12 @@ let exp_to_concrete_string (exp : expr) : string =
     let to_string' = to_string spaces in
     let str = 
       match e with
-      | Var x -> x
-      | Num x -> string_of_int x
-      | Bool x -> string_of_bool x
-      | Unop (Negate, x) -> parenthensize ("~-" ^ to_string' x)
+      | Var v -> v
+      | Num n -> string_of_int n
+      | Bool b -> string_of_bool b
+      | Unop (op, x) ->
+          (match op with
+           | Negate -> parenthensize ("~-" ^ to_string' x))
       | Binop (op, x, y) ->
           let binop_combine s =
             parenthensize (to_string' x ^ " "
@@ -137,4 +139,32 @@ let exp_to_concrete_string (exp : expr) : string =
 (* exp_to_abstract_string exp -- Return a string representation of the
    abstract syntax of the expression `exp` *)
 let exp_to_abstract_string (exp : expr) : string =
-  failwith "exp_to_abstract_string not implemented" ;;
+  let parenthensize x = "(" ^ x ^ ")" in
+  let form constructor internal =
+    constructor ^ parenthensize (String.concat ", " internal) in
+  let rec to_string e =
+    match e with
+    | Var v -> form "Var" [v]
+    | Num n -> form "Num" [string_of_int n]
+    | Bool b -> form "Bool" [string_of_bool b]
+    | Unop (op, x) ->
+        (match op with
+         | Negate -> form "Unop" ["Negate"; to_string x])
+    | Binop (op, x, y) ->
+        let op_name =
+          match op with
+          | Plus -> "Plus"
+          | Minus -> "Minus"
+          | Times -> "Times"
+          | Equals -> "Equals"
+          | LessThan -> "LessThan" in
+        form "Binop" [op_name; to_string x; to_string y]
+    | Conditional (c, t, f) ->
+        form "Conditional" [to_string c; to_string t; to_string f]
+    | Fun (v, x) -> form "Fun" [v; to_string x]
+    | Let (v, x, y) -> form "Let" [v; to_string x; to_string y]
+    | Letrec (v, x, y) -> form "Letrec" [v; to_string x; to_string y]
+    | Raise -> "Raise"
+    | Unassigned -> "Unassigned"
+    | App (x, y) -> form "App" [to_string x; to_string y] in
+  to_string exp ;;
