@@ -85,7 +85,9 @@ let rec free_vars (exp : expr) : varidset =
    variable names use the prefix "var". (Otherwise, they might
    accidentally be the same as a generated variable name.) *)
 let new_varname () : varid =
-  failwith "new_varname not implemented" ;;
+  let suffix = ref ~-1 in
+  incr suffix;
+  "var" ^ string_of_int !suffix ;;
 
 (*......................................................................
   Substitution 
