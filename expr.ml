@@ -60,8 +60,25 @@ let vars_of_list : string list -> varidset =
   
 (* free_vars exp -- Returns the set of `varid`s corresponding to free
    variables in `exp` *)
-let free_vars (exp : expr) : varidset =
-  failwith "free_vars not implemented" ;;
+let rec free_vars (exp : expr) : varidset =
+  match exp with
+  | Var v -> SS.singleton v
+  | Num _ -> SS.empty
+  | Bool _ -> SS.empty
+  | Unop (_op, x) -> free_vars x
+  | Binop (_op, x, y) -> SS.union (free_vars x) (free_vars y)
+  | Conditional (c, t, f) ->
+      free_vars f
+      |> SS.union (free_vars t)
+      |> SS.union (free_vars c)
+  | Fun (v, x) -> SS.remove v (free_vars x)
+  | Let (v, x, y) ->
+      SS.union (SS.remove v (free_vars y)) (free_vars x)
+  | Letrec (v, x, y) ->
+      SS.remove v (SS.union (free_vars y) (free_vars x))
+  | Raise -> SS.empty
+  | Unassigned -> SS.empty
+  | App (f, x) -> SS.union (free_vars f) (free_vars x) ;;
   
 (* new_varname () -- Returns a freshly minted `varid` with prefix
    "var" and a running counter a la `gensym`. Assumes no other
@@ -166,5 +183,5 @@ let exp_to_abstract_string (exp : expr) : string =
     | Letrec (v, x, y) -> form "Letrec" [v; to_string x; to_string y]
     | Raise -> "Raise"
     | Unassigned -> "Unassigned"
-    | App (x, y) -> form "App" [to_string x; to_string y] in
+    | App (f, x) -> form "App" [to_string f; to_string x] in
   to_string exp ;;
