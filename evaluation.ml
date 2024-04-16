@@ -70,19 +70,44 @@ module Env : ENV =
     let empty () : env = []
 
     let close (exp : expr) (env : env) : value =
-      failwith "close not implemented"
+      Closure (exp, env)
 
-    let lookup (env : env) (varname : varid) : value =
-      failwith "lookup not implemented"
+    let rec lookup (env : env) (varname : varid) : value =
+      match env with
+      | [] -> raise (EvalError "environment variable not found")
+      | (var, x) :: tl ->
+          if var = varname then !x else lookup tl varname
 
     let extend (env : env) (varname : varid) (loc : value ref) : env =
-      failwith "extend not implemented"
+      let rec extend' acc e =
+        match e with
+        | [] -> (varname, loc) :: acc
+        | (var, x) :: tl ->
+            let hd' = if var = varname then var, loc else var, x in
+            extend' (hd' :: acc) tl in
+      List.rev (extend' [] env)
 
-    let value_to_string ?(printenvp : bool = true) (v : value) : string =
-      failwith "value_to_string not implemented"
+    let rec value_to_string ?(printenvp : bool = true) (v : value) : string =
+      match v with
+      | Val exp -> exp_to_concrete_string exp
+      | Closure (exp, env) ->
+          let exp_str = exp_to_concrete_string exp in
+          if printenvp then
+            let rec to_string' acc e =
+              match e with
+              | [] -> acc
+              | (var, x) :: tl ->
+                  to_string' (var ^ " = " ^ value_to_string !x ^ "\n") tl in
+            "Expression:" ^ exp_str ^ "\nEnvironment: " ^ to_string' "" env
+          else "Expression: " ^ exp_str ^ "\n"
 
     let env_to_string (env : env) : string =
-      failwith "env_to_string not implemented"
+      let rec to_string' acc e =
+        match e with
+        | [] -> acc
+        | (var, x) :: tl ->
+            to_string' (var ^ " = " ^ value_to_string !x ^ "\n") tl in
+      to_string' "" env
   end
 ;;
 
