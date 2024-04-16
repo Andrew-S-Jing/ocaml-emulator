@@ -220,4 +220,4 @@ let eval_e _ =
    above, not the `evaluate` function, so it doesn't matter how it's
    set when you submit your solution.) *)
    
-let evaluate = eval_s ;;
+let evaluate = eval_t ;;

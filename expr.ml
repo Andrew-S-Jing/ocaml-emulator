@@ -3,6 +3,8 @@
                         MiniML -- Expressions
 *)
 
+let cTAB_SIZE = 2 ;;
+
 (*......................................................................
   Abstract syntax of MiniML expressions 
  *)
@@ -142,49 +144,47 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
    the concrete syntax of the expression `exp` *)
 let exp_to_concrete_string (exp : expr) : string =
   let parenthensize x = "(" ^ x ^ ")" in
-  let rec to_string spaces e =
-    let spaces_str = String.make spaces ' ' in
-    let to_string' = to_string spaces in
+  let rec to_string tabs e =
+    let to_string' = to_string tabs in
+    let to_string_tab = to_string (tabs + 1) in
+    let enter = "\n" ^ String.make (tabs * cTAB_SIZE) ' ' in
+    let enter_tab = enter ^ String.make cTAB_SIZE ' ' in
     let str = 
       match e with
       | Var v -> v
-      | Num n -> string_of_int n
+      | Num n -> if n < 0 then "~" ^ string_of_int n else string_of_int n
       | Bool b -> string_of_bool b
       | Unop (op, x) ->
           (match op, x with
-           | Negate, Num n -> string_of_int ~-n
+           | Negate, Num n -> to_string' (Num ~-n)
            | Negate, _ -> "~-" ^ to_string' x)
       | Binop (op, x, y) ->
-          let binop_combine s =
-            parenthensize (to_string' x ^ " "
-                          ^ s ^ " "
-                          ^ to_string' y) in
-          (match op with
-           | Plus -> binop_combine "+"
-           | Minus -> binop_combine "-"
-           | Times -> binop_combine "*"
-           | Equals -> binop_combine "="
-           | LessThan -> binop_combine "<")
+          let op_str = 
+            match op with
+            | Plus -> "+"
+            | Minus -> "-"
+            | Times -> "*"
+            | Equals -> "="
+            | LessThan -> "<" in
+          parenthensize (String.concat " " [to_string' x; op_str; to_string' y])
       | Conditional (c, t, f) ->
-          let spaces' = spaces + 2 in
-          "if " ^ to_string' c
-          ^ " then\n" ^ to_string spaces' t ^ "\n" ^ spaces_str
-          ^ "else\n" ^ to_string spaces' f
+          String.concat "" ["if "; to_string' c; " then"; enter_tab;
+                            to_string' t; enter;
+                            "else"; enter_tab;
+                            to_string_tab f]
       | Fun (v, x) ->
-          parenthensize ("fun " ^ v ^ " -> " ^ to_string' x)
+          parenthensize (String.concat "" ["fun "; v; " ->"; enter_tab;
+                                           to_string_tab x])
       | Let (v, p, q) ->
-          "let " ^ v ^
-          " =\n" ^ to_string (spaces + 2) p
-          ^ " in\n" ^ to_string' q
-      | Letrec (v, p, q) ->
-          "let rec " ^ v
-          ^ " =\n" ^ to_string (spaces + 2) p
-          ^ " in\n" ^ to_string' q
+          String.concat "" ["let "; v; " ="; enter_tab;
+                            to_string_tab p; " in"; enter;
+                            to_string' q]
+      | Letrec (v, p, q) -> to_string' (Let ("rec " ^ v, p, q))
       | Raise -> "(raise EvalException)"
-      | Unassigned -> "unbound variable"
+      | Unassigned -> ""
       | App (f, x) ->
-          parenthensize (to_string' f ^ " " ^ to_string' x) in
-    spaces_str ^ str in
+          parenthensize (String.concat " " [to_string' f; to_string' x]) in
+    str in
   to_string 0 exp ;;
 
      
