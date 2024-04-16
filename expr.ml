@@ -132,7 +132,7 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
       else Letrec (v, x, subst' y)
   | Raise -> Raise
   | Unassigned -> Unassigned
-  | App (f, x) -> App (subst' f, subst' x)
+  | App (f, x) -> App (subst' f, subst' x) ;;
      
 (*......................................................................
   String representations of expressions
