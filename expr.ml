@@ -143,6 +143,7 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
 let exp_to_concrete_string (exp : expr) : string =
   let parenthensize x = "(" ^ x ^ ")" in
   let rec to_string spaces e =
+    let spaces_str = String.make spaces ' ' in
     let to_string' = to_string spaces in
     let str = 
       match e with
@@ -150,8 +151,9 @@ let exp_to_concrete_string (exp : expr) : string =
       | Num n -> string_of_int n
       | Bool b -> string_of_bool b
       | Unop (op, x) ->
-          (match op with
-           | Negate -> parenthensize ("~-" ^ to_string' x))
+          (match op, x with
+           | Negate, Num n -> string_of_int ~-n
+           | Negate, _ -> "~-" ^ to_string' x)
       | Binop (op, x, y) ->
           let binop_combine s =
             parenthensize (to_string' x ^ " "
@@ -166,8 +168,8 @@ let exp_to_concrete_string (exp : expr) : string =
       | Conditional (c, t, f) ->
           let spaces' = spaces + 2 in
           "if " ^ to_string' c
-          ^ " then\n" ^ to_string spaces' t
-          ^ "\n else\n" ^ to_string spaces' f
+          ^ " then\n" ^ to_string spaces' t ^ "\n" ^ spaces_str
+          ^ "else\n" ^ to_string spaces' f
       | Fun (v, x) ->
           parenthensize ("fun " ^ v ^ " -> " ^ to_string' x)
       | Let (v, p, q) ->
@@ -178,11 +180,11 @@ let exp_to_concrete_string (exp : expr) : string =
           "let rec " ^ v
           ^ " =\n" ^ to_string (spaces + 2) p
           ^ " in\n" ^ to_string' q
-      | Raise -> "raise an exception"
+      | Raise -> "(raise EvalException)"
       | Unassigned -> "unbound variable"
       | App (f, x) ->
           parenthensize (to_string' f ^ " " ^ to_string' x) in
-    String.make spaces ' ' ^ str in
+    spaces_str ^ str in
   to_string 0 exp ;;
 
      
