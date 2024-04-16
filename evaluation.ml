@@ -117,8 +117,51 @@ let eval_t (exp : expr) (_env : Env.env) : Env.value =
 
 (* The SUBSTITUTION MODEL evaluator -- to be completed *)
    
-let eval_s (_exp : expr) (_env : Env.env) : Env.value =
-  failwith "eval_s not implemented" ;;
+let eval_s (exp : expr) (_env : Env.env) : Env.value =
+  let rec eval_s' e =
+    match e with
+    | Var v -> raise (EvalError ("unbound variable: " ^ v))
+    | Num n ->  Num n
+    | Bool b -> Bool b
+    | Unop (op, x) ->
+        let x' = eval_s' x in
+        (match op, x' with
+         | Negate, Num n -> Num ~-n
+         | Negate, _ -> raise (EvalError "(~-) expects type int"))
+    | Binop (op, x, y) ->
+        let x', y' = eval_s' x, eval_s' y in
+        (match op, x', y' with
+         | Plus, Num a, Num b -> Num (a + b)
+         | Minus, Num a, Num b -> Num (a - b)
+         | Times, Num a, Num b -> Num (a * b)
+         | Equals, Num a, Num b -> Bool (a = b)
+         | Equals, Bool a, Bool b -> Bool (a = b)
+         | LessThan, Num a, Num b -> Bool (a < b)
+         | Plus, _, _ -> raise (EvalError "(+) expects type int")
+         | Minus, _, _ -> raise (EvalError "(-) expects type int")
+         | Times, _, _ -> raise (EvalError "( * ) expects type int")
+         | Equals, _, _ -> raise (EvalError "(=) expects type int or bool")
+         | LessThan, _, _ -> raise (EvalError "(<) expects type int"))
+    | Conditional (c, t, f) ->
+        let c' = eval_s' c in
+        if c' = Bool true then eval_s' t
+        else if c' = Bool false then eval_s' f
+        else raise (EvalError "conditional is expected to be type bool")
+    | Fun (v, x) -> Fun (v, x)
+    | Let (v, x, y) ->
+        let x' = eval_s' x in
+        eval_s' (subst v x' y)
+    | Letrec (v, x, y) ->
+        let x' = eval_s' x in
+        eval_s' (subst v (subst v (Letrec (v, x', Var v)) x') y)
+    | Raise -> raise EvalException
+    | Unassigned -> raise (EvalError "Unassigned constructor called")
+    | App (f, x) ->
+        let f', x' = eval_s' f, eval_s' x in
+        (match f' with
+         | Fun (a, b) -> eval_s' (subst a x' b)
+         | _ -> raise (EvalError "function app expects type 'a -> 'b")) in
+  Env.Val (eval_s' exp) ;;
      
 (* The DYNAMICALLY-SCOPED ENVIRONMENT MODEL evaluator -- to be
    completed *)
