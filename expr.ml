@@ -197,7 +197,8 @@ let exp_to_abstract_string (exp : expr) : string =
   let rec to_string e =
     match e with
     | Var v -> form "Var" [v]
-    | Num n -> form "Num" [string_of_int n]
+    | Num n ->
+        form "Num" [if n < 0 then "~" ^ string_of_int n else string_of_int n]
     | Bool b -> form "Bool" [string_of_bool b]
     | Unop (op, x) ->
         (match op with
