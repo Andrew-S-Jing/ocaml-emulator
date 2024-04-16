@@ -98,8 +98,41 @@ let new_varname () : varid =
 (* subst var_name repl exp -- Return the expression `exp` with `repl`
    substituted for free occurrences of `var_name`, avoiding variable
    capture *)
-let subst (var_name : varid) (repl : expr) (exp : expr) : expr =
-  failwith "subst not implemented" ;;
+let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
+  let subst' = subst var_name repl in
+  let is_v_bound v = SS.mem v (free_vars repl) in
+  match exp with
+  | Var v -> if v = var_name then repl else Var v
+  | Num n -> Num n
+  | Bool b -> Bool b
+  | Unop (op, x) -> Unop (op, subst' x)
+  | Binop (op, x, y) -> Binop (op, subst' x, subst' y)
+  | Conditional (c, t, f) -> Conditional (subst' c, subst' t, subst' f)
+  | Fun (v, x) ->
+      if v = var_name then Fun (v, x)
+      else if is_v_bound v then
+        let v' = new_varname () in
+        let x' = subst v (Var v') x |> subst' in
+        Fun (v', x')
+      else Fun (v, subst' x)
+  | Let (v, x, y) ->
+      if v = var_name then Let (v, subst' x, y)
+      else if is_v_bound v then
+        let v' = new_varname () in
+        let y' = subst v (Var v') y |> subst' in
+        Let (v', subst' x, y')
+      else Let (v, subst' x, subst' y)
+  | Letrec (v, x, y) ->
+      if v = var_name then Let (v, x, y)
+      else if is_v_bound v then
+        let v' = new_varname () in
+        let x' = subst v (Var v') x |> subst' in
+        let y' = subst v (Var v') y |> subst' in
+        Letrec (v', x', y')
+      else Letrec (v, x, subst' y)
+  | Raise -> Raise
+  | Unassigned -> Unassigned
+  | App (f, x) -> App (subst' f, subst' x)
      
 (*......................................................................
   String representations of expressions
