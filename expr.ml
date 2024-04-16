@@ -72,10 +72,9 @@ let rec free_vars (exp : expr) : varidset =
       |> SS.union (free_vars t)
       |> SS.union (free_vars c)
   | Fun (v, x) -> SS.remove v (free_vars x)
-  | Let (v, x, y) ->
-      SS.union (SS.remove v (free_vars y)) (free_vars x)
+  | Let (v, x, y)
   | Letrec (v, x, y) ->
-      SS.remove v (SS.union (free_vars y) (free_vars x))
+      SS.union (SS.remove v (free_vars y)) (free_vars x)
   | Raise -> SS.empty
   | Unassigned -> SS.empty
   | App (f, x) -> SS.union (free_vars f) (free_vars x) ;;
@@ -125,13 +124,12 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
         Let (v', subst' x, y')
       else Let (v, subst' x, subst' y)
   | Letrec (v, x, y) ->
-      if v = var_name then Let (v, x, y)
+      if v = var_name then Letrec (v, subst' x, y)
       else if is_v_bound v then
         let v' = new_varname () in
-        let x' = subst v (Var v') x |> subst' in
         let y' = subst v (Var v') y |> subst' in
-        Letrec (v', x', y')
-      else Letrec (v, x, subst' y)
+        Letrec (v', subst' x, y')
+      else Letrec (v, subst' x, subst' y)
   | Raise -> Raise
   | Unassigned -> Unassigned
   | App (f, x) -> App (subst' f, subst' x) ;;
