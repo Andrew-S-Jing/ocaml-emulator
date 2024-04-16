@@ -162,11 +162,15 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
          | Equals, Num a, Num b -> Bool (a = b)
          | Equals, Bool a, Bool b -> Bool (a = b)
          | LessThan, Num a, Num b -> Bool (a < b)
-         | Plus, _, _ -> raise (EvalError "(+) expects type int")
-         | Minus, _, _ -> raise (EvalError "(-) expects type int")
-         | Times, _, _ -> raise (EvalError "( * ) expects type int")
-         | Equals, _, _ -> raise (EvalError "(=) expects type int or bool")
-         | LessThan, _, _ -> raise (EvalError "(<) expects type int"))
+         | x, _, _ -> 
+             let o, t =
+               match x with
+               | Plus -> "(+)", "int"
+               | Minus -> "(-)", "int"
+               | Times -> "( * )", "int"
+               | Equals -> "(=)", "int or type bool"
+               | LessThan -> "(<)", "int" in
+             raise (EvalError (o ^ " expects type " ^ t)))
     | Conditional (c, t, f) ->
         let c' = eval_s' c in
         if c' = Bool true then eval_s' t
