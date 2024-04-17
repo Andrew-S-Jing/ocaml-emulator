@@ -16,7 +16,7 @@ let test f tests results str =
   test' 1 tests results ;;
 
 open Expr;;
-let tests_wellformed_trivial =
+let tests_trivial =
   [
     (*1*)  "Var", Var "x";
     (*2*)  "Num", Num 0;
@@ -72,7 +72,7 @@ let tests_wellformed_trivial =
 (* test exp_to_concrete_string *)
 let results_etcs =
   [
-    (* WELL FORMED TRIVIAL: *)
+    (* TRIVIAL: *)
     (*1*)  "x";
     (*2*)  "0";
     (*3*)  "true";
@@ -103,11 +103,11 @@ let results_etcs =
     (*27*) "let rec f =\n  (fun f ->\n    if (f = 0) then\n"
              ^ "      true\n    else\n      (f (f - 1))) in\n(f 5)";
     (*28*) "(raise EvalException)";
-    (*29*) "";
+    (*29*) "Unassigned";
     (*30*) "((fun x ->\n  (x + 1)) 2)";
   ] in
 test exp_to_concrete_string
-     tests_wellformed_trivial results_etcs
+     tests_trivial results_etcs
      "exp_to_concrete_string" ;;
 
 (* test: exp_to_abstract_string *)
@@ -159,7 +159,7 @@ let results_etas =
     (*30*) "App(Fun(x, Binop(Plus, Var(x), Num(1))), Num(2))";
   ] in
 test exp_to_abstract_string
-     tests_wellformed_trivial results_etas
+     tests_trivial results_etas
      "exp_to_abstract_string" ;;
 
 (* test: subst *)
@@ -229,3 +229,50 @@ let test lst str =
         test' (counter + 1) tl in
   test' 1 lst in
 test tests_subst_wellformed "subst" ;;
+
+let tests_wellformed =
+  [
+    (*1*)  "Num 1", Num 1;
+    (*2*)  "Bool true", Bool true;
+    (*3*)  "Negate 1", Unop (Negate, Num 1);
+    (*4*)  "Negate 0", Unop (Negate, Num 0);
+    (*5*)  "Negate ~-1", Unop (Negate, Unop (Negate, Num 1));
+    (*6*)  "Plus 1 1", Binop (Plus, Num 1, Num 1);
+    (*7*)  "Minus 1 3", Binop (Minus, Num 1, Num 3);
+    (*8*)  "Times ~-3 4", Binop (Times, Unop (Negate, Num 3), Num 4);
+    (*9*)  "Equals t f", Binop (Equals, Bool true, Bool false);
+    (*10*) "LessThan 4 ~-0", Binop (LessThan, Num 4, Unop (Negate, Num 0));
+    (*11*) "Cond t t f", Conditional (Bool true, Bool true, Bool false);
+    (*12*) "Cond f t f", Conditional (Bool false, Bool true, Bool false);
+    (*13*) "Fun x -> x + 1", Fun ("x", Binop (Plus, Var "x", Num 1));
+    (*14*) "Let x=5 in x", Let ("x", Num 5, Var "x");
+    (*15*) "Let x=5 in let x=1 in x",
+            Let ("x", Num 5, Let ("x", Num 1, Var "x"));
+    (*16*) "Let s=(fun x -> x + 1) in s (s 1)",
+            Let ("s", Fun ("x", Binop (Plus, Var "x", Num 1)),
+                 App (Var "s", App (Var "s", Num 1)));
+    (*17*) "Let s=(fun s -> s + 1) in s (s 1)",
+            Let ("s", Fun ("s", Binop (Plus, Var "s", Num 1)),
+                 App (Var "s", App (Var "s", Num 1)));
+    (*18*) "Let succ = fun x -> x + 1 in
+            let square = fun x -> x * x in
+            let y = 3 in
+            id (square y)",
+            Let ("succ", Fun ("x", Binop (Plus, Var "x", Num 1)),
+            Let ("square", Fun ("x", Binop (Times, Var "x", Var "x")),
+            Let ("y", Num 3,
+            App (Var "succ", App (Var "square", Var "y")))));
+    (*19*) "Let x = 3 in
+            let f = fun x -> x + 1 in
+            let y = fun f -> f in
+            let z = fun z -> (f z) + (y z) in
+            z x",
+            Let ("x", Num 3,
+            Let ("f", Fun ("x", Binop (Plus, Var "x", Num 1)),
+            Let ("y", Fun ("f", Var "f"),
+            Let ("z", Fun ("z", Binop (Plus, App (Var "f", Var "z"),
+                                             App (Var "y", Var "z"))),
+            App (Var "z", Var "x")))));
+  ] in
+let eval = Evaluation.eval_s in
+let test = eval in () ;;

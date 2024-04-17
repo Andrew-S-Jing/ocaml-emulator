@@ -182,7 +182,7 @@ let exp_to_concrete_string (exp : expr) : string =
                             to_string' q]
       | Letrec (v, p, q) -> to_string' (Let ("rec " ^ v, p, q))
       | Raise -> "(raise EvalException)"
-      | Unassigned -> ""
+      | Unassigned -> "Unassigned"
       | App (f, x) ->
           parenthensize (String.concat " " [to_string' f; to_string' x]) in
     str in
