@@ -2,20 +2,21 @@
 open CS51Utils.Absbook ;;
 let test f tests results str =
   print_endline ("\nTESTING: " ^ str);
-  let rec test' ts ress =
+  let rec test' counter ts ress =
     match ts, ress with
-    | [], [] -> print_endline ("finished: " ^ str)
+    | [], [] -> print_endline ("FINISHED: " ^ str)
     | [], _
     | _, [] ->
         raise (Invalid_argument ("test: unequal test-list lengths for " ^ str))
     | (name, arg) :: t1, res :: t2 ->
+        print_int counter;
+        print_char ' ';
         unit_test ((f arg) = res) (name ^ ": ");
-        test' t1 t2 in
-  test' tests results;
-  print_endline ("FINISHED: " ^ str)
+        test' (counter + 1) t1 t2 in
+  test' 1 tests results ;;
 
 open Expr;;
-let tests_wellformed =
+let tests_wellformed_trivial =
   [
     (*1*)  "Var", Var "x";
     (*2*)  "Num", Num 0;
@@ -71,7 +72,7 @@ let tests_wellformed =
 (* test exp_to_concrete_string *)
 let results_etcs =
   [
-    (* WELL FORMED: *)
+    (* WELL FORMED TRIVIAL: *)
     (*1*)  "x";
     (*2*)  "0";
     (*3*)  "true";
@@ -106,13 +107,13 @@ let results_etcs =
     (*30*) "((fun x ->\n  (x + 1)) 2)";
   ] in
 test exp_to_concrete_string
-     tests_wellformed results_etcs
+     tests_wellformed_trivial results_etcs
      "exp_to_concrete_string" ;;
 
 (* test: exp_to_abstract_string *)
 let results_etas =
   [
-    (* WELL FORMED: *)
+    (* WELL FORMED TRIVIAL: *)
     (*1*)  "Var(x)";
     (*2*)  "Num(0)";
     (*3*)  "Bool(true)";
@@ -158,5 +159,73 @@ let results_etas =
     (*30*) "App(Fun(x, Binop(Plus, Var(x), Num(1))), Num(2))";
   ] in
 test exp_to_abstract_string
-     tests_wellformed results_etas
+     tests_wellformed_trivial results_etas
      "exp_to_abstract_string" ;;
+
+(* test: subst *)
+let tests_subst_wellformed =
+  let s = subst "x" (Num 2) in
+  (* a couple substitutions are evaluated here avoid repeat mutable iteration *)
+  let a = subst "x" (Var "y") (Fun ("y", Binop (Plus, Var "y", Var "x"))) in
+  (* let _ = print_endline (exp_to_concrete_string a) in *)
+  let b = subst "x" (Var "y")
+                (Let ("y", Binop (Plus, Var "x", Num 1),
+                            Binop (Plus, Var "x", Var "y"))) in
+  (* let _ = print_endline (exp_to_concrete_string b) in *)
+  [
+    (*1*)  "Var x", s (Var "x") = Num 2;
+    (*2*)  "Var y", s (Var "y") = Var "y";
+    (*3*)  "Num 0", s (Num 0) = Num 0;
+    (*4*)  "Bool true", s (Bool true) = Bool true;
+    (*5*)  "Negate x", s (Unop (Negate, Var "x")) = Unop (Negate, Num 2);
+    (*6*)  "Negate y", s (Unop (Negate, Var "y")) = Unop (Negate, Var "y");
+    (*7*)  "Plus 1 1", s (Binop (Plus, Num 1, Num 1))
+                       = Binop (Plus, Num 1, Num 1);
+    (*8*)  "Minus 1 x", s (Binop (Minus, Num 1, Var "x"))
+                        = Binop (Minus, Num 1, Num 2);
+    (*9*)  "Times x y", s (Binop (Times, Var "x", Var "y"))
+                        = Binop (Times, Num 2, Var "y");
+    (*10*) "Equals y z", s (Binop (Equals, Var "y", Var "z"))
+                         = Binop (Equals, Var "y", Var "z");
+    (*11*) "Lessthan x x", s (Binop (LessThan, Var "x", Var "x"))
+                           = Binop (LessThan, Num 2, Num 2);
+    (*12*) "Cond t t f", s (Conditional (Bool true, Bool true, Bool false))
+                         = Conditional (Bool true, Bool true, Bool false);
+    (*13*) "Fun x -> x+1", s (Fun ("x", Binop (Plus, Var "x", Num 1)))
+                           = Fun ("x", Binop (Plus, Var "x", Num 1));
+    (*14*) "Fun y -> x + 1", s (Fun ("y", Binop (Plus, Var "x", Num 1)))
+                             = Fun ("y", Binop (Plus, Num 2, Num 1));
+    (*15*) "Fun y -> y + 1", s (Fun ("y", Binop (Plus, Var "y", Num 1)))
+                             = Fun ("y", Binop (Plus, Var "y", Num 1));
+    (*16*) "Fun y -> y + x", (* subst "x" (Var "y")
+                                (Fun ("y", Binop (Plus, Var "y", Var "x")))*)
+                             a
+                             = Fun ("var0", Binop (Plus, Var "var0", Var "y"));
+    (*17*) "Let x x+1 x+4", s (Let ("x", Binop (Plus, Var "x", Num 1),
+                                         Binop (Plus, Var "x", Num 4)))
+                            = Let ("x", Binop (Plus, Num 2, Num 1),
+                                   Binop (Plus, Var "x", Num 4));
+    (*18*) "Let y x+1 x+y", s (Let ("y", Binop (Plus, Var "x", Num 1),
+                                         Binop (Plus, Var "x", Var "y")))
+                            = Let ("y", Binop (Plus, Num 2, Num 1),
+                                        Binop (Plus, Num 2, Var "y"));
+
+    (*19*) "Let y x+1 x+y", (* subst "x" (Var "y")
+                               (Let ("y", Binop (Plus, Var "x", Num 1),
+                                          Binop (Plus, Var "x", Var "y"))) *)
+                            b
+                            = Let ("var1", Binop (Plus, Var "y", Num 1),
+                                           Binop (Plus, Var "y", Var "var1"));
+  ] in
+let test lst str =
+  print_endline ("\nTESTING: " ^ str);
+  let rec test' counter l =
+    match l with
+    | [] -> print_endline ("FINISHED: " ^ str)
+    | (name, boolean) :: tl ->
+        print_int counter;
+        print_char ' ';
+        unit_test boolean name;
+        test' (counter + 1) tl in
+  test' 1 lst in
+test tests_subst_wellformed "subst" ;;

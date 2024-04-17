@@ -12,6 +12,12 @@ tests:
 test:
 	./tests.byte
 
+utop:
+	dune build --profile release
+	dune utop . --profile release
+
 repl:
 	./miniml.byte
 
+clean:
+	rm -rf _build *.byte

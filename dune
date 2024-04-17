@@ -1,6 +1,6 @@
 (library
  (name project)
- (libraries CS51Utils))
+ (libraries CS51Utils str))
 
 (menhir
  (modules miniml_parse))

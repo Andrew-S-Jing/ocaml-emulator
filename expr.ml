@@ -85,10 +85,10 @@ let rec free_vars (exp : expr) : varidset =
    "var" and a running counter a la `gensym`. Assumes no other
    variable names use the prefix "var". (Otherwise, they might
    accidentally be the same as a generated variable name.) *)
-let new_varname () : varid =
+let new_varname : unit -> varid =
   let suffix = ref ~-1 in
-  incr suffix;
-  "var" ^ string_of_int !suffix ;;
+  fun () -> incr suffix;
+            "var" ^ (string_of_int !suffix) ;;
 
 (*......................................................................
   Substitution 
@@ -103,7 +103,8 @@ let new_varname () : varid =
    capture *)
 let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
   let subst' = subst var_name repl in
-  let is_v_bound v = SS.mem v (free_vars repl) in
+  let frees = free_vars repl in
+  let is_v_in_free_vars v = SS.mem v frees in
   match exp with
   | Var v -> if v = var_name then repl else Var v
   | Num n -> Num n
@@ -113,23 +114,23 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
   | Conditional (c, t, f) -> Conditional (subst' c, subst' t, subst' f)
   | Fun (v, x) ->
       if v = var_name then Fun (v, x)
-      else if is_v_bound v then
+      else if is_v_in_free_vars v then
         let v' = new_varname () in
-        let x' = subst v (Var v') x |> subst' in
+        let x' = (subst v (Var v') x) |> subst' in
         Fun (v', x')
       else Fun (v, subst' x)
   | Let (v, x, y) ->
       if v = var_name then Let (v, subst' x, y)
-      else if is_v_bound v then
+      else if is_v_in_free_vars v then
         let v' = new_varname () in
-        let y' = subst v (Var v') y |> subst' in
+        let y' = (subst v (Var v') y) |> subst' in
         Let (v', subst' x, y')
       else Let (v, subst' x, subst' y)
   | Letrec (v, x, y) ->
       if v = var_name then Letrec (v, subst' x, y)
-      else if is_v_bound v then
+      else if is_v_in_free_vars v then
         let v' = new_varname () in
-        let y' = subst v (Var v') y |> subst' in
+        let y' = (subst v (Var v') y) |> subst' in
         Letrec (v', subst' x, y')
       else Letrec (v, subst' x, subst' y)
   | Raise -> Raise
