@@ -347,6 +347,6 @@ let results_eval_d =
     (*17*) Num 3;
     (*18*) Num 10;
     (*19*) Num 7;
-    (*20*) Num 2;
+    (*20*) Num 0; (* Differs here from eval_s and eval_l *)
   ] in
-test_eval Evaluation.eval_d tests_wellformed results_eval_d "eval_s" ;;
+test_eval Evaluation.eval_d tests_wellformed results_eval_d "eval_d" ;;
