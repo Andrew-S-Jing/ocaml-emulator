@@ -1,6 +1,6 @@
 (* Final Project testing *)
 open CS51Utils.Absbook ;;
-let test f tests results str =
+let test (f : 'a -> 'b) (tests : (string * 'a) list) (results : 'b list) str =
   print_endline ("\nTESTING: " ^ str);
   let rec test' counter ts ress =
     match ts, ress with
@@ -230,6 +230,23 @@ let test lst str =
   test' 1 lst in
 test tests_subst_wellformed "subst" ;;
 
+(* TESTING EVAL_S: *)
+let test_eval f tests results str =
+  print_endline ("\nTESTING: " ^ str);
+  let rec test' counter ts ress =
+    match ts, ress with
+    | [], [] -> print_endline ("FINISHED: " ^ str)
+    | [], _
+    | _, [] ->
+        raise (Invalid_argument ("test: unequal test-list lengths for " ^ str))
+    | (name, arg) :: t1, res :: t2 ->
+        print_int counter;
+        print_char ' ';
+        let open Evaluation.Env in
+        unit_test ((f arg (empty ())) = Val res) (name ^ ": ");
+        test' (counter + 1) t1 t2 in
+  test' 1 tests results ;;
+
 let tests_wellformed =
   [
     (*1*)  "Num 1", Num 1;
@@ -254,18 +271,18 @@ let tests_wellformed =
     (*17*) "Let s=(fun s -> s + 1) in s (s 1)",
             Let ("s", Fun ("s", Binop (Plus, Var "s", Num 1)),
                  App (Var "s", App (Var "s", Num 1)));
-    (*18*) "Let succ = fun x -> x + 1 in
-            let square = fun x -> x * x in
-            let y = 3 in
-            id (square y)",
+    (*18*) "Let succ = fun x -> x + 1 in\
+            let square = fun x -> x * x in\
+            let y = 3 in\
+            succ (square y)",
             Let ("succ", Fun ("x", Binop (Plus, Var "x", Num 1)),
             Let ("square", Fun ("x", Binop (Times, Var "x", Var "x")),
             Let ("y", Num 3,
             App (Var "succ", App (Var "square", Var "y")))));
-    (*19*) "Let x = 3 in
-            let f = fun x -> x + 1 in
-            let y = fun f -> f in
-            let z = fun z -> (f z) + (y z) in
+    (*19*) "Let x = 3 in\
+            let f = fun x -> x + 1 in\
+            let y = fun f -> f in\
+            let z = fun z -> (f z) + (y z) in\
             z x",
             Let ("x", Num 3,
             Let ("f", Fun ("x", Binop (Plus, Var "x", Num 1)),
@@ -273,6 +290,63 @@ let tests_wellformed =
             Let ("z", Fun ("z", Binop (Plus, App (Var "f", Var "z"),
                                              App (Var "y", Var "z"))),
             App (Var "z", Var "x")))));
+    (*20*) "Let x = 2 in\
+            let f = fun y -> x + y in\
+            let x = 0 in\
+            f x",
+            Let ("x", Num 2,
+            Let ("f", Fun ("y", Binop (Plus, Var "x", Var "y")),
+            Let ("x", Num 0,
+            App (Var "f", Var "x"))));
+  ] ;;
+
+let results_eval_s =
+  [
+    (*1*)  Num 1;
+    (*2*)  Bool true;
+    (*3*)  Num ~-1;
+    (*4*)  Num 0;
+    (*5*)  Num 1;
+    (*6*)  Num 2;
+    (*7*)  Num ~-2;
+    (*8*)  Num ~-12;
+    (*9*)  Bool false;
+    (*10*) Bool false;
+    (*11*) Bool true;
+    (*12*) Bool false;
+    (*13*) Fun ("x", Binop (Plus, Var "x", Num 1));
+    (*14*) Num 5;
+    (*15*) Num 1;
+    (*16*) Num 3;
+    (*17*) Num 3;
+    (*18*) Num 10;
+    (*19*) Num 7;
+    (*20*) Num 2;
   ] in
-let eval = Evaluation.eval_s in
-let test = eval in () ;;
+test_eval Evaluation.eval_s tests_wellformed results_eval_s "eval_s" ;;
+
+(* TESTING: EVAL_D *)
+let results_eval_d =
+  [
+    (*1*)  Num 1;
+    (*2*)  Bool true;
+    (*3*)  Num ~-1;
+    (*4*)  Num 0;
+    (*5*)  Num 1;
+    (*6*)  Num 2;
+    (*7*)  Num ~-2;
+    (*8*)  Num ~-12;
+    (*9*)  Bool false;
+    (*10*) Bool false;
+    (*11*) Bool true;
+    (*12*) Bool false;
+    (*13*) Fun ("x", Binop (Plus, Var "x", Num 1));
+    (*14*) Num 5;
+    (*15*) Num 1;
+    (*16*) Num 3;
+    (*17*) Num 3;
+    (*18*) Num 10;
+    (*19*) Num 7;
+    (*20*) Num 2;
+  ] in
+test_eval Evaluation.eval_d tests_wellformed results_eval_d "eval_s" ;;

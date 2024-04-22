@@ -79,13 +79,9 @@ module Env : ENV =
           if var = varname then !x else lookup tl varname
 
     let extend (env : env) (varname : varid) (loc : value ref) : env =
-      let rec extend' acc e =
-        match e with
-        | [] -> (varname, loc) :: acc
-        | (var, x) :: tl ->
-            let hd' = if var = varname then var, loc else var, x in
-            extend' (hd' :: acc) tl in
-      List.rev (extend' [] env)
+      match List.find_opt (fun (var, _pointer) -> var = varname) env with
+      | None -> (varname, loc) :: env
+      | Some (_var, pointer) -> pointer := !loc; env
 
     let rec value_to_string ?(printenvp : bool = true) (v : value) : string =
       match v with
@@ -149,13 +145,11 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
     | Num n ->  Num n
     | Bool b -> Bool b
     | Unop (op, x) ->
-        let x' = eval_s' x in
-        (match op, x' with
+        (match op, eval_s' x with
          | Negate, Num n -> Num ~-n
          | Negate, _ -> raise (EvalError "(~-) expects type int"))
     | Binop (op, x, y) ->
-        let x', y' = eval_s' x, eval_s' y in
-        (match op, x', y' with
+        (match op, eval_s' x, eval_s' y with
          | Plus, Num a, Num b -> Num (a + b)
          | Minus, Num a, Num b -> Num (a - b)
          | Times, Num a, Num b -> Num (a * b)
@@ -172,10 +166,9 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
                | LessThan -> "(<)", "int" in
              raise (EvalError (o ^ " expects type " ^ t)))
     | Conditional (c, t, f) ->
-        let c' = eval_s' c in
-        if c' = Bool true then eval_s' t
-        else if c' = Bool false then eval_s' f
-        else raise (EvalError "conditional is expected to be type bool")
+        (match eval_s' c with
+         | Bool b -> if b then eval_s' t else eval_s' f
+         | _ ->  raise (EvalError "conditional is expected to be type bool"))
     | Fun (v, x) -> Fun (v, x)
     | Let (v, x, y) ->
         let x' = eval_s' x in
@@ -195,8 +188,48 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
 (* The DYNAMICALLY-SCOPED ENVIRONMENT MODEL evaluator -- to be
    completed *)
    
-let eval_d (_exp : expr) (_env : Env.env) : Env.value =
-  failwith "eval_d not implemented" ;;
+let rec eval_d (exp : expr) (env : Env.env) : Env.value =
+  let eval_d' e = eval_d e env in
+  match exp with
+  | Var v -> Env.lookup env v
+  | Num n -> Val (Num n)
+  | Bool b -> Val (Bool b)
+  | Unop (op, x) ->
+      (match op, eval_d' x with
+       | Negate, Val (Num n) -> Val (Num ~-n)
+       | Negate, _ -> raise (EvalError "(~-) expects type int"))
+  | Binop (op, x, y) ->
+      (match op, eval_d' x, eval_d' y with
+       | Plus, Val (Num a), Val (Num b) -> Val (Num (a + b))
+       | Minus, Val (Num a), Val (Num b) -> Val (Num (a - b))
+       | Times, Val (Num a), Val (Num b) -> Val (Num (a * b))
+       | Equals, Val (Num a), Val (Num b) -> Val (Bool (a = b))
+       | Equals, Val (Bool a), Val (Bool b) -> Val (Bool (a = b))
+       | LessThan, Val (Num a), Val (Num b) -> Val (Bool (a < b))
+       | x, _, _ ->
+           let o, t =
+             match x with
+             | Plus -> "(+)", "int"
+             | Minus -> "(-)", "int"
+             | Times -> "( * )", "int"
+             | Equals -> "(=)", "int or type bool"
+             | LessThan -> "(<)", "int" in
+           raise (EvalError (o ^ " expects type " ^ t)))
+  | Conditional (c, t, f) ->
+      (match eval_d' c with
+       | Val (Bool b) -> if b then eval_d' t else eval_d' f
+       | _ -> raise (EvalError "conditional is expected to be of type bool"))
+  | Fun (v, x) -> Val (Fun (v, x))
+  | Let (v, x, y)
+  | Letrec (v, x, y) -> eval_d y (Env.extend env v (ref (eval_d' x)))
+  | Raise -> raise EvalException
+  | Unassigned -> raise (EvalError "evaluated to \"Unassigned\"")
+  | App (f, x) ->
+      match eval_d' f, eval_d' x with
+      | Val (Fun (v, f')), (Val _ as x') -> 
+          eval_d f' (Env.extend env v (ref x'))
+      | Val _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
+      | _ -> raise (EvalError "Fun app expects a value, not a closure")
        
 (* The LEXICALLY-SCOPED ENVIRONMENT MODEL evaluator -- optionally
    completed as (part of) your extension *)
