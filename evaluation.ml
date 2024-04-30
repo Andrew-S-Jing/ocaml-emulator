@@ -49,6 +49,11 @@ module type ENV = sig
        bindings in a physical, not just structural, way. *)
     val extend : env -> varid -> value ref -> env
 
+    (* copy env -- Returns a copied environment with structural equality
+       but not physical equality. Useful for updating value pointers without
+       affecting upstream pointer contents *)
+    val copy : env -> env
+
     (* env_to_string env -- Returns a printable string representation
        of environment `env` *)
     val env_to_string : env -> string
@@ -82,6 +87,9 @@ module Env : ENV =
       match List.find_opt (fun (var, _pointer) -> var = varname) env with
       | None -> (varname, loc) :: env
       | Some (_var, pointer) -> pointer := !loc; env
+
+    let copy (env : env) : env =
+      List.map (fun (var, pointer) -> var, ref !pointer) env
 
     let rec value_to_string ?(printenvp : bool = true) (v : value) : string =
       match v with
@@ -225,17 +233,68 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
   | Raise -> raise EvalException
   | Unassigned -> raise (EvalError "evaluated to \"Unassigned\"")
   | App (f, x) ->
-      match eval_d' f, eval_d' x with
-      | Val (Fun (v, f')), (Val _ as x') -> 
+      (match eval_d' f, eval_d' x with
+       | Val (Fun (v, f')), (Val _ as x') -> 
           eval_d f' (Env.extend env v (ref x'))
-      | Val _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
-      | _ -> raise (EvalError "Fun app expects a value, not a closure")
+       | Val _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
+       | _ -> raise (EvalError "eval_d: unexpected closure in dynamic env")) ;;
        
 (* The LEXICALLY-SCOPED ENVIRONMENT MODEL evaluator -- optionally
    completed as (part of) your extension *)
    
-let eval_l (_exp : expr) (_env : Env.env) : Env.value =
-  failwith "eval_l not implemented" ;;
+let rec eval_l (exp : expr) (env : Env.env) : Env.value =
+  let eval_l' e = eval_l e env in
+  match exp with
+  | Var v -> Env.lookup env v
+  | Num n -> Val (Num n)
+  | Bool b -> Val (Bool b)
+  | Unop (op, x) ->
+      (match op, eval_l' x with
+       | Negate, Val (Num n) -> Val (Num ~-n)
+       | Negate, _ -> raise (EvalError "(~-) expects type int"))
+  | Binop (op, x, y) ->
+      (match op, eval_l' x, eval_l' y with
+       | Plus, Val (Num a), Val (Num b) -> Val (Num (a + b))
+       | Minus, Val (Num a), Val (Num b) -> Val (Num (a - b))
+       | Times, Val (Num a), Val (Num b) -> Val (Num (a * b))
+       | Equals, Val (Num a), Val (Num b) -> Val (Bool (a = b))
+       | Equals, Val (Bool a), Val (Bool b) -> Val (Bool (a = b))
+       | LessThan, Val (Num a), Val (Num b) -> Val (Bool (a < b))
+       | x, _, _ ->
+           let o, t =
+             match x with
+             | Plus -> "(+)", "int"
+             | Minus -> "(-)", "int"
+             | Times -> "( * )", "int"
+             | Equals -> "(=)", "int or type bool"
+             | LessThan -> "(<)", "int" in
+           raise (EvalError (o ^ " expects type " ^ t)))
+  | Conditional (c, t, f) ->
+      (match eval_l' c with
+       | Val (Bool b) -> if b then eval_l' t else eval_l' f
+       | _ -> raise (EvalError "conditional is expected to be of type bool"))
+  | Fun (v, x) -> Closure (Fun (v, x), env)
+  (* Let statement's lexical scoping needs to not be affected by future
+     dynamical changes, so the downstream evaluation needs to have different
+     value pointers, thus the `Env.copy` result being passed downstream. *)
+  | Let (v, x, y) -> eval_l y (Env.extend (Env.copy env) v (ref (eval_l' x)))
+  (* Letrec statement here follows the workaround enabled by the `Unassigned`
+     constructor of the `Env.value` type *)
+  | Letrec (v, x, y) ->
+      let rec_pointer = ref (Env.Val Unassigned) in
+      let env_lex = Env.extend env v rec_pointer in
+      let v_D = eval_l x env_lex in
+      rec_pointer := v_D;
+      eval_l y env_lex
+  | Raise -> raise EvalException
+  | Unassigned -> raise (EvalError "evaluated to \"Unassigned\"")
+  | App (f, x) ->
+      let dynamic = env in
+      (match eval_l f dynamic, eval_l x dynamic with
+       | Closure (Fun (v, f'), lexical), (Val _ as x') ->
+          eval_l f' (Env.extend lexical v (ref x'))
+       | Closure _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
+       | _ -> raise (EvalError "eval_l: expects type \"Fun\" as a closure")) ;;
 
 (* The EXTENDED evaluator -- if you want, you can provide your
    extension as a separate evaluator, or if it is type- and
@@ -253,4 +312,4 @@ let eval_e _ =
    above, not the `evaluate` function, so it doesn't matter how it's
    set when you submit your solution.) *)
    
-let evaluate = eval_t ;;
+let evaluate = eval_l ;;

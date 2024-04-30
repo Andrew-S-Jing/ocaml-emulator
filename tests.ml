@@ -262,27 +262,27 @@ let tests_wellformed =
     (*11*) "Cond t t f", Conditional (Bool true, Bool true, Bool false);
     (*12*) "Cond f t f", Conditional (Bool false, Bool true, Bool false);
     (*13*) "Fun x -> x + 1", Fun ("x", Binop (Plus, Var "x", Num 1));
-    (*14*) "Let x=5 in x", Let ("x", Num 5, Var "x");
-    (*15*) "Let x=5 in let x=1 in x",
+    (*14*) "let x=5 in x", Let ("x", Num 5, Var "x");
+    (*15*) "let x=5 in let x=1 in x",
             Let ("x", Num 5, Let ("x", Num 1, Var "x"));
-    (*16*) "Let s=(fun x -> x + 1) in s (s 1)",
+    (*16*) "let s=(fun x -> x + 1) in s (s 1)",
             Let ("s", Fun ("x", Binop (Plus, Var "x", Num 1)),
                  App (Var "s", App (Var "s", Num 1)));
-    (*17*) "Let s=(fun s -> s + 1) in s (s 1)",
+    (*17*) "let s=(fun s -> s + 1) in s (s 1)",
             Let ("s", Fun ("s", Binop (Plus, Var "s", Num 1)),
                  App (Var "s", App (Var "s", Num 1)));
-    (*18*) "Let succ = fun x -> x + 1 in\
-            let square = fun x -> x * x in\
-            let y = 3 in\
+    (*18*) "let succ = fun x -> x + 1 in \
+            let square = fun x -> x * x in \
+            let y = 3 in \
             succ (square y)",
             Let ("succ", Fun ("x", Binop (Plus, Var "x", Num 1)),
             Let ("square", Fun ("x", Binop (Times, Var "x", Var "x")),
             Let ("y", Num 3,
             App (Var "succ", App (Var "square", Var "y")))));
-    (*19*) "Let x = 3 in\
-            let f = fun x -> x + 1 in\
-            let y = fun f -> f in\
-            let z = fun z -> (f z) + (y z) in\
+    (*19*) "let x = 3 in \
+            let f = fun x -> x + 1 in \
+            let y = fun f -> f in \
+            let z = fun z -> (f z) + (y z) in \
             z x",
             Let ("x", Num 3,
             Let ("f", Fun ("x", Binop (Plus, Var "x", Num 1)),
@@ -290,14 +290,50 @@ let tests_wellformed =
             Let ("z", Fun ("z", Binop (Plus, App (Var "f", Var "z"),
                                              App (Var "y", Var "z"))),
             App (Var "z", Var "x")))));
-    (*20*) "Let x = 2 in\
-            let f = fun y -> x + y in\
-            let x = 0 in\
+    (*20*) "let x = 2 in \
+            let f = fun y -> x + y in \
+            let x = 0 in \
             f x",
             Let ("x", Num 2,
             Let ("f", Fun ("y", Binop (Plus, Var "x", Var "y")),
             Let ("x", Num 0,
             App (Var "f", Var "x"))));
+    (*21*) "let rec f = fun x -> if x = 0 then true else f (x - 1) in \
+            let x = 3 in \
+            f x",
+            Letrec ("f",
+                    Fun ("x",
+                         Conditional (Binop (Equals, Var "x", Num 0),
+                                      Bool true,
+                                      App (Var "f",
+                                      Binop (Minus,
+                                             Var "x",
+                                             Num 1)))),
+            Let ("x", Num 3,
+            App (Var "f", Var "x")));
+    (*22*) "let y = true in \
+            let rec f = \
+              let g = fun x -> if x = 0 then y else f (x - 1) in \
+              let y = false in \
+              g in \
+            let x = 3 in \
+            let y = false in \
+            f x",
+            Let ("y", Bool true, 
+            Letrec ("f",
+                    Fun ("x",
+                         Let ("g", 
+                              Conditional (Binop (Equals, Var "x", Num 0),
+                                           Var "y",
+                                           App (Var "f",
+                                           Binop (Minus,
+                                                  Var "x",
+                                                  Num 1))),
+                         Let ("y", Bool false,
+                         Var "g"))),
+            Let ("x", Num 3,
+            Let ("y", Bool false,
+            App (Var "f", Var "x")))));
   ] ;;
 
 let results_eval_s =
@@ -322,6 +358,8 @@ let results_eval_s =
     (*18*) Num 10;
     (*19*) Num 7;
     (*20*) Num 2;
+    (*21*) Bool true;
+    (*22*) Bool true;
   ] in
 test_eval Evaluation.eval_s tests_wellformed results_eval_s "eval_s" ;;
 
@@ -348,5 +386,34 @@ let results_eval_d =
     (*18*) Num 10;
     (*19*) Num 7;
     (*20*) Num 0; (* Differs here from eval_s and eval_l *)
+    (*21*) Bool true;
+    (*22*) Bool false;
   ] in
 test_eval Evaluation.eval_d tests_wellformed results_eval_d "eval_d" ;;
+
+let results_eval_l =
+  [
+    (*1*)  Num 1;
+    (*2*)  Bool true;
+    (*3*)  Num ~-1;
+    (*4*)  Num 0;
+    (*5*)  Num 1;
+    (*6*)  Num 2;
+    (*7*)  Num ~-2;
+    (*8*)  Num ~-12;
+    (*9*)  Bool false;
+    (*10*) Bool false;
+    (*11*) Bool true;
+    (*12*) Bool false;
+    (*13*) Fun ("x", Binop (Plus, Var "x", Num 1));
+    (*14*) Num 5;
+    (*15*) Num 1;
+    (*16*) Num 3;
+    (*17*) Num 3;
+    (*18*) Num 10;
+    (*19*) Num 7;
+    (*20*) Num 2; (* differs here from eval_d *)
+    (*21*) Bool true;
+    (*22*) Bool true;
+  ] in
+test_eval Evaluation.eval_l tests_wellformed results_eval_l "eval_l" ;;
