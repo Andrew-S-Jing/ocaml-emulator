@@ -47,6 +47,10 @@ type expr =
   | Raise                                (* exceptions *)
   | Unassigned                           (* (temporarily) unassigned *)
   | App of expr * expr                   (* function applications *)
+  | List of expr list_internal           (* lists *)
+and 'a list_internal =
+  | Empty
+  | Cons of 'a * 'a list_internal
 ;;
   
 (*......................................................................
@@ -95,7 +99,9 @@ let rec free_vars (exp : expr) : varidset =
       SS.union (SS.remove v (free_vars y)) (free_vars x)
   | Raise -> SS.empty
   | Unassigned -> SS.empty
-  | App (f, x) -> SS.union (free_vars f) (free_vars x) ;;
+  | App (f, x) -> SS.union (free_vars f) (free_vars x)
+  | List Empty -> SS.empty
+  | List (Cons (hd, tl)) -> SS.union (free_vars hd) (free_vars (List tl)) ;;
   
 (* new_varname () -- Returns a freshly minted `varid` with prefix
    "var" and a running counter a la `gensym`. Assumes no other
@@ -156,7 +162,14 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
       else Letrec (v, subst' x, subst' y)
   | Raise -> Raise
   | Unassigned -> Unassigned
-  | App (f, x) -> App (subst' f, subst' x) ;;
+  | App (f, x) -> App (subst' f, subst' x)
+  | List Empty -> List Empty
+  | List (Cons (hd, tl)) ->
+      let tl' =
+        match subst' (List tl) with
+        | List x -> x
+        | _ -> raise (Failure "reached impossible branch") in
+      List (Cons (subst' hd, tl')) ;;
      
 (*......................................................................
   String representations of expressions
@@ -166,7 +179,7 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
    the concrete syntax of the expression `exp` *)
 let exp_to_concrete_string (exp : expr) : string =
   let parenthensize x = "(" ^ x ^ ")" in
-  let rec to_string tabs e =
+  let rec to_string ?(is_list = false) tabs e =
     let to_string' = to_string tabs in
     let to_string_tab = to_string (tabs + 1) in
     let enter = "\n" ^ String.make (tabs * cTAB_SIZE) ' ' in
@@ -217,7 +230,11 @@ let exp_to_concrete_string (exp : expr) : string =
       | Raise -> "(raise EvalException)"
       | Unassigned -> "Unassigned"
       | App (f, x) ->
-          parenthensize (String.concat " " [to_string' f; to_string' x]) in
+          parenthensize (String.concat " " [to_string' f; to_string' x])
+      | List Empty -> if is_list then "]" else "[]"
+      | List (Cons (hd, tl)) ->
+          let start = if is_list then "" else "[" in
+          start ^ (to_string' hd) ^ (to_string ~is_list:true tabs (List tl)) in
     str in
   to_string 0 exp ;;
 
@@ -266,5 +283,7 @@ let exp_to_abstract_string (exp : expr) : string =
     | Letrec (v, x, y) -> form "Letrec" [v; to_string x; to_string y]
     | Raise -> "Raise"
     | Unassigned -> "Unassigned"
-    | App (f, x) -> form "App" [to_string f; to_string x] in
+    | App (f, x) -> form "App" [to_string f; to_string x]
+    | List Empty -> "List(Empty)"
+    | List (Cons (hd, tl)) -> form "List" [to_string hd; to_string (List tl)] in
   to_string exp ;;

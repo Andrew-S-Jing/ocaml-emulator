@@ -79,7 +79,7 @@ module Env : ENV =
 
     let rec lookup (env : env) (varname : varid) : value =
       match env with
-      | [] -> raise (EvalError "environment variable not found")
+      | [] -> raise (EvalError ("unbound variable " ^ varname))
       | (var, x) :: tl ->
           if var = varname then !x else lookup tl varname
 

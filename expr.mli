@@ -49,6 +49,10 @@ type expr =
   | Raise                                (* exceptions *)
   | Unassigned                           (* (temporarily) unassigned *)
   | App of expr * expr                   (* function applications *)
+  | List of expr list_internal           (* lists *)
+and 'a list_internal =
+  | Empty
+  | Elt of 'a * 'a list_internal
 ;;
     
 (*......................................................................
