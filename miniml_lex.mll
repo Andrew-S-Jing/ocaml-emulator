@@ -55,6 +55,7 @@ let id = ['a'-'z'] ['a'-'z' 'A'-'Z' '0'-'9']*
 let sym = ['(' ')'] | (['$' '&' '*' '+' '-' '/' '=' '<' '>' '^'
                             '.' '~' ';' '!' '?' '%' ':' '#']+)
 let unit = "()"
+let char = ['a'-'z' 'A'-'Z' '0'-'9' ' ']
 
 rule token = parse
   | unit
@@ -67,9 +68,9 @@ rule token = parse
         { let num = int_of_string inum in
           INT num
         }
-  | ''' (. as c) '''
+  | ''' (char as c) '''
         { CHAR c }
-  | '"' (.* as s) '"'
+  | '"' (char+ as s) '"'
         { STRING s }
   | id as word
         { try

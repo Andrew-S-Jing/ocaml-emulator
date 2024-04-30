@@ -38,9 +38,11 @@
 (* Associativity and precedence *)
 %nonassoc IF
 %left LESSTHAN EQUALS
-%left PLUS MINUS
-%left TIMES
-%nonassoc NEG
+%left PLUS MINUS FPLUS FMINUS
+%left TIMES FTIMES
+%left FPOWER
+%left CONCAT
+%nonassoc NEG FNEG
 
 (* Start symbol of the grammar and its type *)
 %start input
@@ -66,9 +68,9 @@ expnoapp: INT                   { Num $1 }
         | exp EQUALS exp        { Binop(Equals, $1, $3) }
         | exp LESSTHAN exp      { Binop(LessThan, $1, $3) }
         | NEG exp               { Unop(Negate, $2) }
-        | IF exp THEN exp ELSE exp      { Conditional($2, $4, $6) }
-        | LET ID EQUALS exp IN exp      { Let($2, $4, $6) }
-        | LET REC ID EQUALS exp IN exp  { Letrec($3, $5, $7) }
+        | IF exp THEN exp ELSE exp        { Conditional($2, $4, $6) }
+        | LET ID EQUALS exp IN exp        { Let($2, $4, $6) }
+        | LET REC ID EQUALS exp IN exp    { Letrec($3, $5, $7) }
         | FUNCTION ID DOT exp   { Fun($2, $4) }
         | FUNCTION UNIT DOT exp { UnitFun $4 }
         | RAISE                 { Raise }
@@ -83,6 +85,8 @@ expnoapp: INT                   { Num $1 }
         | exp FPOWER exp        { Binop(FPower, $1, $3) }
         | FNEG exp              { Unop(FNegate, $2) }
         | exp CONCAT exp        { Binop(Concat, $1, $3) }
+        | LET ID ID EQUALS exp IN exp     { Let($2, Fun($3, $5), $7) }
+        | LET REC ID ID EQUALS exp IN exp { Letrec($3, Fun($4, $6), $8)}
 ;
 
 %%
