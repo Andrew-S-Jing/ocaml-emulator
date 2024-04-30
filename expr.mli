@@ -10,6 +10,7 @@
 (* Unary operators *)
 type unop =
   | Negate
+  | FNegate
 ;;
 
 (* Binary operators *)
@@ -19,6 +20,11 @@ type binop =
   | Times
   | Equals
   | LessThan
+  | FPlus
+  | FMinus
+  | FTimes
+  | FPower
+  | Concat
 ;;
 
 (* Variable identifers *)
@@ -27,12 +33,17 @@ type varid = string ;;
 (* Expressions *)
 type expr =
   | Var of varid                         (* variables *)
+  | Unit                                 (* Unit *)
   | Num of int                           (* integers *)
+  | Float of float                       (* float *)
   | Bool of bool                         (* booleans *)
+  | Char of char                         (* characters *)
+  | String of string                     (* strings *)
   | Unop of unop * expr                  (* unary operators *)
   | Binop of binop * expr * expr         (* binary operators *)
   | Conditional of expr * expr * expr    (* if then else *)
   | Fun of varid * expr                  (* function definitions *)
+  | UnitFun of expr                      (* function of type unit -> 'a *)
   | Let of varid * expr * expr           (* local naming *)
   | Letrec of varid * expr * expr        (* recursive local naming *)
   | Raise                                (* exceptions *)

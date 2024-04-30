@@ -150,34 +150,52 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
   let rec eval_s' e =
     match e with
     | Var v -> raise (EvalError ("unbound variable: " ^ v))
+    | Unit -> Unit
     | Num n ->  Num n
+    | Float f -> Float f
     | Bool b -> Bool b
+    | Char c -> Char c
+    | String s -> String s
     | Unop (op, x) ->
         (match op, eval_s' x with
          | Negate, Num n -> Num ~-n
-         | Negate, _ -> raise (EvalError "(~-) expects type int"))
+         | FNegate, Float f -> Float ~-.f
+         | Negate, _ -> raise (EvalError "(~-) expects type int")
+         | FNegate, _ -> raise (EvalError "(~-.) expects type float"))
     | Binop (op, x, y) ->
         (match op, eval_s' x, eval_s' y with
          | Plus, Num a, Num b -> Num (a + b)
          | Minus, Num a, Num b -> Num (a - b)
          | Times, Num a, Num b -> Num (a * b)
          | Equals, Num a, Num b -> Bool (a = b)
+         | Equals, Float a, Float b -> Bool (a = b)
          | Equals, Bool a, Bool b -> Bool (a = b)
          | LessThan, Num a, Num b -> Bool (a < b)
+         | FPlus, Float a, Float b -> Float (a +. b)
+         | FMinus, Float a, Float b -> Float (a -. b)
+         | FTimes, Float a, Float b -> Float (a *. b)
+         | FPower, Float a, Float b -> Float (a ** b)
+         | Concat, String a, String b -> String (a ^ b)
          | x, _, _ -> 
              let o, t =
                match x with
                | Plus -> "(+)", "int"
                | Minus -> "(-)", "int"
                | Times -> "( * )", "int"
-               | Equals -> "(=)", "int or type bool"
-               | LessThan -> "(<)", "int" in
+               | Equals -> "(=)", "'a for both args"
+               | LessThan -> "(<)", "int"
+               | FPlus -> "(+.)", "float"
+               | FMinus -> "(-.)", "float"
+               | FTimes -> "( *. )", "float"
+               | FPower -> "(**)", "float"
+               | Concat -> "(^)", "string" in
              raise (EvalError (o ^ " expects type " ^ t)))
     | Conditional (c, t, f) ->
         (match eval_s' c with
          | Bool b -> if b then eval_s' t else eval_s' f
          | _ ->  raise (EvalError "conditional is expected to be type bool"))
     | Fun (v, x) -> Fun (v, x)
+    | UnitFun x -> UnitFun x
     | Let (v, x, y) ->
         let x' = eval_s' x in
         eval_s' (subst v x' y)
@@ -190,7 +208,10 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
         let f', x' = eval_s' f, eval_s' x in
         (match f' with
          | Fun (a, b) -> eval_s' (subst a x' b)
-         | _ -> raise (EvalError "function app expects type 'a -> 'b")) in
+         | UnitFun b ->
+             if x' = Unit then eval_s' b
+             else raise (EvalError "function app expects type unit")
+         | _ -> raise (EvalError "function expected of type 'a -> 'b")) in
   Env.Val (eval_s' exp) ;;
      
 (* The DYNAMICALLY-SCOPED ENVIRONMENT MODEL evaluator -- to be
@@ -200,34 +221,52 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
   let eval_d' e = eval_d e env in
   match exp with
   | Var v -> Env.lookup env v
+  | Unit -> Val Unit
   | Num n -> Val (Num n)
+  | Float f -> Val (Float f)
   | Bool b -> Val (Bool b)
+  | Char c -> Val (Char c)
+  | String s -> Val (String s)
   | Unop (op, x) ->
       (match op, eval_d' x with
        | Negate, Val (Num n) -> Val (Num ~-n)
-       | Negate, _ -> raise (EvalError "(~-) expects type int"))
+       | FNegate, Val (Float f) -> Val (Float ~-.f)
+       | Negate, _ -> raise (EvalError "(~-) expects type int")
+       | FNegate, _ -> raise (EvalError "(~-.) expects type float"))
   | Binop (op, x, y) ->
       (match op, eval_d' x, eval_d' y with
        | Plus, Val (Num a), Val (Num b) -> Val (Num (a + b))
        | Minus, Val (Num a), Val (Num b) -> Val (Num (a - b))
        | Times, Val (Num a), Val (Num b) -> Val (Num (a * b))
        | Equals, Val (Num a), Val (Num b) -> Val (Bool (a = b))
+       | Equals, Val (Float a), Val (Float b) -> Val (Bool (a = b))
        | Equals, Val (Bool a), Val (Bool b) -> Val (Bool (a = b))
        | LessThan, Val (Num a), Val (Num b) -> Val (Bool (a < b))
+       | FPlus, Val (Float a), Val (Float b) -> Val (Float (a +. b))
+       | FMinus, Val (Float a), Val (Float b) -> Val (Float (a -. b))
+       | FTimes, Val (Float a), Val (Float b) -> Val (Float (a *. b))
+       | FPower, Val (Float a), Val (Float b) -> Val (Float (a ** b))
+       | Concat, Val (String a), Val (String b) -> Val (String (a ^ b))
        | x, _, _ ->
            let o, t =
              match x with
              | Plus -> "(+)", "int"
              | Minus -> "(-)", "int"
              | Times -> "( * )", "int"
-             | Equals -> "(=)", "int or type bool"
-             | LessThan -> "(<)", "int" in
+             | Equals -> "(=)", "'a for both args"
+             | LessThan -> "(<)", "int"
+             | FPlus -> "(+.)", "float"
+             | FMinus -> "(-.)", "float"
+             | FTimes -> "( *. )", "float"
+             | FPower -> "(**)", "float"
+             | Concat -> "(^)", "string" in
            raise (EvalError (o ^ " expects type " ^ t)))
   | Conditional (c, t, f) ->
       (match eval_d' c with
        | Val (Bool b) -> if b then eval_d' t else eval_d' f
        | _ -> raise (EvalError "conditional is expected to be of type bool"))
   | Fun (v, x) -> Val (Fun (v, x))
+  | UnitFun x -> Val (UnitFun x)
   | Let (v, x, y)
   | Letrec (v, x, y) -> eval_d y (Env.extend env v (ref (eval_d' x)))
   | Raise -> raise EvalException
@@ -235,7 +274,10 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
   | App (f, x) ->
       (match eval_d' f, eval_d' x with
        | Val (Fun (v, f')), (Val _ as x') -> 
-          eval_d f' (Env.extend env v (ref x'))
+           eval_d f' (Env.extend env v (ref x'))
+       | Val (UnitFun f'), Val unit_ ->
+           if unit_ = Unit then eval_d' f'
+           else raise (EvalError "Fun app expects type unit")
        | Val _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
        | _ -> raise (EvalError "eval_d: unexpected closure in dynamic env")) ;;
        
@@ -246,34 +288,52 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
   let eval_l' e = eval_l e env in
   match exp with
   | Var v -> Env.lookup env v
+  | Unit -> Val Unit
   | Num n -> Val (Num n)
+  | Float f -> Val (Float f)
   | Bool b -> Val (Bool b)
+  | Char c -> Val (Char c)
+  | String s -> Val (String s)
   | Unop (op, x) ->
       (match op, eval_l' x with
        | Negate, Val (Num n) -> Val (Num ~-n)
-       | Negate, _ -> raise (EvalError "(~-) expects type int"))
+       | FNegate, Val (Float f) -> Val (Float ~-.f)
+       | Negate, _ -> raise (EvalError "(~-) expects type int")
+       | FNegate, _ -> raise (EvalError "(~-.) expects type float"))
   | Binop (op, x, y) ->
       (match op, eval_l' x, eval_l' y with
        | Plus, Val (Num a), Val (Num b) -> Val (Num (a + b))
        | Minus, Val (Num a), Val (Num b) -> Val (Num (a - b))
        | Times, Val (Num a), Val (Num b) -> Val (Num (a * b))
        | Equals, Val (Num a), Val (Num b) -> Val (Bool (a = b))
+       | Equals, Val (Float a), Val (Float b) -> Val (Bool (a = b))
        | Equals, Val (Bool a), Val (Bool b) -> Val (Bool (a = b))
        | LessThan, Val (Num a), Val (Num b) -> Val (Bool (a < b))
+       | FPlus, Val (Float a), Val (Float b) -> Val (Float (a +. b))
+       | FMinus, Val (Float a), Val (Float b) -> Val (Float (a -. b))
+       | FTimes, Val (Float a), Val (Float b) -> Val (Float (a *. b))
+       | FPower, Val (Float a), Val (Float b) -> Val (Float (a ** b))
+       | Concat, Val (String a), Val (String b) -> Val (String (a ^ b))
        | x, _, _ ->
            let o, t =
              match x with
              | Plus -> "(+)", "int"
              | Minus -> "(-)", "int"
              | Times -> "( * )", "int"
-             | Equals -> "(=)", "int or type bool"
-             | LessThan -> "(<)", "int" in
+             | Equals -> "(=)", "'a for both args"
+             | LessThan -> "(<)", "int"
+             | FPlus -> "(+.)", "float"
+             | FMinus -> "(-.)", "float"
+             | FTimes -> "( *. )", "float"
+             | FPower -> "(**)", "float"
+             | Concat -> "(^)", "string" in
            raise (EvalError (o ^ " expects type " ^ t)))
   | Conditional (c, t, f) ->
       (match eval_l' c with
        | Val (Bool b) -> if b then eval_l' t else eval_l' f
        | _ -> raise (EvalError "conditional is expected to be of type bool"))
   | Fun (v, x) -> Closure (Fun (v, x), env)
+  | UnitFun x -> Closure (UnitFun x, env)
   (* Let statement's lexical scoping needs to not be affected by future
      dynamical changes, so the downstream evaluation needs to have different
      value pointers, thus the `Env.copy` result being passed downstream. *)
@@ -292,7 +352,10 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
       let dynamic = env in
       (match eval_l f dynamic, eval_l x dynamic with
        | Closure (Fun (v, f'), lexical), (Val _ as x') ->
-          eval_l f' (Env.extend lexical v (ref x'))
+           eval_l f' (Env.extend lexical v (ref x'))
+       | Closure (UnitFun f', lexical), Val unit_ ->
+           if unit_ = Unit then eval_l f' lexical
+           else raise (EvalError "Fun app expects type ()")
        | Closure _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
        | _ -> raise (EvalError "eval_l: expects type \"Fun\" as a closure")) ;;
 

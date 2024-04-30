@@ -11,6 +11,7 @@ let cTAB_SIZE = 2 ;;
 
 type unop =
   | Negate
+  | FNegate
 ;;
     
 type binop =
@@ -19,18 +20,28 @@ type binop =
   | Times
   | Equals
   | LessThan
+  | FPlus
+  | FMinus
+  | FTimes
+  | FPower
+  | Concat
 ;;
 
 type varid = string ;;
   
 type expr =
   | Var of varid                         (* variables *)
+  | Unit                                 (* unit *)
   | Num of int                           (* integers *)
+  | Float of float                       (* floats *)
   | Bool of bool                         (* booleans *)
+  | Char of char                         (* char *)
+  | String of string                     (* strings *)
   | Unop of unop * expr                  (* unary operators *)
   | Binop of binop * expr * expr         (* binary operators *)
   | Conditional of expr * expr * expr    (* if then else *)
   | Fun of varid * expr                  (* function definitions *)
+  | UnitFun of expr                      (* functions of type unit -> 'a *)
   | Let of varid * expr * expr           (* local naming *)
   | Letrec of varid * expr * expr        (* recursive local naming *)
   | Raise                                (* exceptions *)
@@ -65,8 +76,12 @@ let vars_of_list : string list -> varidset =
 let rec free_vars (exp : expr) : varidset =
   match exp with
   | Var v -> SS.singleton v
-  | Num _ -> SS.empty
-  | Bool _ -> SS.empty
+  | Unit
+  | Num _
+  | Float _
+  | Bool _
+  | Char _
+  | String _ -> SS.empty
   | Unop (_op, x) -> free_vars x
   | Binop (_op, x, y) -> SS.union (free_vars x) (free_vars y)
   | Conditional (c, t, f) ->
@@ -74,6 +89,7 @@ let rec free_vars (exp : expr) : varidset =
       |> SS.union (free_vars t)
       |> SS.union (free_vars c)
   | Fun (v, x) -> SS.remove v (free_vars x)
+  | UnitFun (x) -> free_vars x
   | Let (v, x, y)
   | Letrec (v, x, y) ->
       SS.union (SS.remove v (free_vars y)) (free_vars x)
@@ -107,8 +123,12 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
   let is_v_in_free_vars v = SS.mem v frees in
   match exp with
   | Var v -> if v = var_name then repl else Var v
+  | Unit -> Unit
   | Num n -> Num n
+  | Float f -> Float f
   | Bool b -> Bool b
+  | Char c -> Char c
+  | String s -> String s
   | Unop (op, x) -> Unop (op, subst' x)
   | Binop (op, x, y) -> Binop (op, subst' x, subst' y)
   | Conditional (c, t, f) -> Conditional (subst' c, subst' t, subst' f)
@@ -119,6 +139,7 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
         let x' = (subst v (Var v') x) |> subst' in
         Fun (v', x')
       else Fun (v, subst' x)
+  | UnitFun x -> UnitFun x
   | Let (v, x, y) ->
       if v = var_name then Let (v, subst' x, y)
       else if is_v_in_free_vars v then
@@ -153,12 +174,18 @@ let exp_to_concrete_string (exp : expr) : string =
     let str = 
       match e with
       | Var v -> v
+      | Unit -> "()"
       | Num n -> if n < 0 then "~" ^ string_of_int n else string_of_int n
+      | Float f -> if f < 0. then "~" ^ string_of_float f else string_of_float f
       | Bool b -> string_of_bool b
+      | Char c -> "\'" ^ Char.escaped c ^ "\'"
+      | String s -> "\"" ^ s ^ "\""
       | Unop (op, x) ->
           (match op, x with
            | Negate, Num n -> to_string' (Num ~-n)
-           | Negate, _ -> "~-" ^ to_string' x)
+           | FNegate, Float f -> to_string' (Float ~-.f)
+           | Negate, _ -> "~-" ^ to_string' x
+           | FNegate, _ -> "~-." ^ to_string' x)
       | Binop (op, x, y) ->
           let op_str = 
             match op with
@@ -166,7 +193,12 @@ let exp_to_concrete_string (exp : expr) : string =
             | Minus -> "-"
             | Times -> "*"
             | Equals -> "="
-            | LessThan -> "<" in
+            | LessThan -> "<"
+            | FPlus -> "+."
+            | FMinus -> "-."
+            | FTimes -> "*."
+            | FPower -> "**"
+            | Concat -> "^" in
           parenthensize (String.concat " " [to_string' x; op_str; to_string' y])
       | Conditional (c, t, f) ->
           String.concat "" ["if "; to_string' c; " then"; enter_tab;
@@ -176,6 +208,7 @@ let exp_to_concrete_string (exp : expr) : string =
       | Fun (v, x) ->
           parenthensize (String.concat "" ["fun "; v; " ->"; enter_tab;
                                            to_string_tab x])
+      | UnitFun x -> to_string' (Fun ("()", x))
       | Let (v, p, q) ->
           String.concat "" ["let "; v; " ="; enter_tab;
                             to_string_tab p; " in"; enter;
@@ -198,12 +231,19 @@ let exp_to_abstract_string (exp : expr) : string =
   let rec to_string e =
     match e with
     | Var v -> form "Var" [v]
+    | Unit -> "Unit"
     | Num n ->
         form "Num" [if n < 0 then "~" ^ string_of_int n else string_of_int n]
+    | Float f ->
+        form "Float" [if f < 0. then "~" ^ string_of_float f
+                      else string_of_float f]
     | Bool b -> form "Bool" [string_of_bool b]
+    | Char c -> form "Char" ["\'" ^ Char.escaped c ^ "\'"]
+    | String s -> form "String" ["\"" ^ s ^ "\""]
     | Unop (op, x) ->
         (match op with
-         | Negate -> form "Unop" ["Negate"; to_string x])
+         | Negate -> form "Unop" ["Negate"; to_string x]
+         | FNegate -> form "Unop" ["FNegate"; to_string x])
     | Binop (op, x, y) ->
         let op_name =
           match op with
@@ -211,11 +251,17 @@ let exp_to_abstract_string (exp : expr) : string =
           | Minus -> "Minus"
           | Times -> "Times"
           | Equals -> "Equals"
-          | LessThan -> "LessThan" in
+          | LessThan -> "LessThan"
+          | FPlus -> "FPlus"
+          | FMinus -> "FMinus"
+          | FTimes -> "FTimes"
+          | FPower -> "FPower"
+          | Concat -> "Concat" in
         form "Binop" [op_name; to_string x; to_string y]
     | Conditional (c, t, f) ->
         form "Conditional" [to_string c; to_string t; to_string f]
     | Fun (v, x) -> form "Fun" [v; to_string x]
+    | UnitFun x -> form "UnitFun" ["()"; to_string x]
     | Let (v, x, y) -> form "Let" [v; to_string x; to_string y]
     | Letrec (v, x, y) -> form "Letrec" [v; to_string x; to_string y]
     | Raise -> "Raise"

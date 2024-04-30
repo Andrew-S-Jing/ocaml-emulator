@@ -48,8 +48,11 @@ let digit = ['0'-'9']
 let id = ['a'-'z'] ['a'-'z' '0'-'9']*
 let sym = ['(' ')'] | (['$' '&' '*' '+' '-' '/' '=' '<' '>' '^'
                             '.' '~' ';' '!' '?' '%' ':' '#']+)
+let unit = "()"
 
 rule token = parse
+  | unit
+        { UNIT }
   | digit+ as inum
         { let num = int_of_string inum in
           INT num

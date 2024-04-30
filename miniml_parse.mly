@@ -25,6 +25,7 @@
 %token <string> ID
 %token <int> INT 
 %token TRUE FALSE
+%token UNIT
 
 (* Associativity and precedence *)
 %nonassoc IF
@@ -60,9 +61,11 @@ expnoapp: INT                   { Num $1 }
         | IF exp THEN exp ELSE exp      { Conditional($2, $4, $6) }
         | LET ID EQUALS exp IN exp      { Let($2, $4, $6) }
         | LET REC ID EQUALS exp IN exp  { Letrec($3, $5, $7) }
-        | FUNCTION ID DOT exp   { Fun($2, $4) } 
+        | FUNCTION ID DOT exp   { Fun($2, $4) }
+        | FUNCTION UNIT DOT exp { UnitFun($4) }
         | RAISE                 { Raise }
         | OPEN exp CLOSE        { $2 }
+        | UNIT                  { Unit }
 ;
 
 %%

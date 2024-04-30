@@ -334,6 +334,16 @@ let tests_wellformed =
             Let ("x", Num 3,
             Let ("y", Bool false,
             App (Var "f", Var "x")))));
+
+    (* Testing: Unit, Float, Char, String *)
+    (*23*) "Unit", Unit;
+    (*24*) "Float 1.2", Float 1.2;
+    (*25*) "Float ~-.1.2", Float ~-.1.2;
+    (*26*) "Char a", Char 'a';
+    (*27*) "String asdf", String "asdf";
+    (*28*) "1. +. 1.", Binop (FPlus, Float 1., Float 1.);
+    (*29*) "Negate ~-.1.", Unop (FNegate, Float ~-.1.);
+    (*30*) "as ^ df", Binop (Concat, String "as", String "df");
   ] ;;
 
 let results_eval_s =
@@ -360,6 +370,15 @@ let results_eval_s =
     (*20*) Num 2;
     (*21*) Bool true;
     (*22*) Bool true;
+
+    (*23*) Unit;
+    (*24*) Float 1.2;
+    (*25*) Float ~-.1.2;
+    (*26*) Char 'a';
+    (*27*) String "asdf";
+    (*28*) Float 2.;
+    (*29*) Float 1.;
+    (*30*) String "asdf";
   ] in
 test_eval Evaluation.eval_s tests_wellformed results_eval_s "eval_s" ;;
 
@@ -388,6 +407,15 @@ let results_eval_d =
     (*20*) Num 0; (* Differs here from eval_s and eval_l *)
     (*21*) Bool true;
     (*22*) Bool false;
+
+    (*23*) Unit;
+    (*24*) Float 1.2;
+    (*25*) Float ~-.1.2;
+    (*26*) Char 'a';
+    (*27*) String "asdf";
+    (*28*) Float 2.;
+    (*29*) Float 1.;
+    (*30*) String "asdf";
   ] in
 test_eval Evaluation.eval_d tests_wellformed results_eval_d "eval_d" ;;
 
@@ -415,5 +443,14 @@ let results_eval_l =
     (*20*) Num 2; (* differs here from eval_d *)
     (*21*) Bool true;
     (*22*) Bool true;
+
+    (*23*) Unit;
+    (*24*) Float 1.2;
+    (*25*) Float ~-.1.2;
+    (*26*) Char 'a';
+    (*27*) String "asdf";
+    (*28*) Float 2.;
+    (*29*) Float 1.;
+    (*30*) String "asdf";
   ] in
 test_eval Evaluation.eval_l tests_wellformed results_eval_l "eval_l" ;;
