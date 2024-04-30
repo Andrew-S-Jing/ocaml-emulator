@@ -98,7 +98,5 @@ val subst : varid -> expr -> expr -> expr ;;
    the concrete syntax of the expression `exp` *)
 val exp_to_concrete_string : expr -> string ;;
 
-(* exp_to_abstract_string exp -- Return a string representation of the
-   abstract syntax of the expression `exp` *)
 val exp_to_abstract_string : expr -> string ;;
 
