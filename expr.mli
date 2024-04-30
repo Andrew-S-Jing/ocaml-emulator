@@ -52,7 +52,7 @@ type expr =
   | List of expr list_internal           (* lists *)
 and 'a list_internal =
   | Empty
-  | Elt of 'a * 'a list_internal
+  | Cons of 'a * 'a list_internal
 ;;
     
 (*......................................................................

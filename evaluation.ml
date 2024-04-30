@@ -211,7 +211,12 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
          | UnitFun b ->
              if x' = Unit then eval_s' b
              else raise (EvalError "function app expects type unit")
-         | _ -> raise (EvalError "function expected of type 'a -> 'b")) in
+         | _ -> raise (EvalError "function expected of type 'a -> 'b"))
+    | List Empty -> List Empty
+    | List (Cons (hd, tl)) ->
+        (match eval_s' (List tl) with
+         | List x -> List (Cons (eval_s' hd, x))
+         | _ -> raise (Failure "list should eval to list")) in
   Env.Val (eval_s' exp) ;;
      
 (* The DYNAMICALLY-SCOPED ENVIRONMENT MODEL evaluator -- to be
@@ -279,7 +284,15 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
            if unit_ = Unit then eval_d' f'
            else raise (EvalError "Fun app expects type unit")
        | Val _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
-       | _ -> raise (EvalError "eval_d: unexpected closure in dynamic env")) ;;
+       | _ -> raise (EvalError "eval_d: unexpected closure in dynamic env"))
+  | List Empty -> Val (List Empty)
+  | List (Cons (hd, tl)) ->
+      (match eval_d' hd, eval_d' (List tl) with
+       | Val a, Val (List b) -> Val (List (Cons (a, b)))
+       | Closure _, _
+       | _, Closure _ ->
+           raise (Failure "eval_d: unexpected closure in dynamic env")
+       | _ -> raise (Failure "list should eval to list")) ;;
        
 (* The LEXICALLY-SCOPED ENVIRONMENT MODEL evaluator -- optionally
    completed as (part of) your extension *)
@@ -357,7 +370,15 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
            if unit_ = Unit then eval_l f' lexical
            else raise (EvalError "Fun app expects type ()")
        | Closure _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
-       | _ -> raise (EvalError "eval_l: expects type \"Fun\" as a closure")) ;;
+       | _ -> raise (Failure "eval_l: expects type \"Fun\" as a closure"))
+  | List Empty -> Val (List Empty)
+  | List (Cons (hd, tl)) ->
+      (match eval_l' hd, eval_l' (List tl) with
+       | Val a, Val (List b) -> Val (List (Cons (a, b)))
+       | Closure (hd'exp, hd'env), Closure ((List _, _) as tl') ->
+           Closure ()
+       | _ -> raise (EvalError "'a list expects type 'a"))
+
 
 (* The EXTENDED evaluator -- if you want, you can provide your
    extension as a separate evaluator, or if it is type- and
