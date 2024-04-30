@@ -35,17 +35,23 @@
                        (".", DOT);
                        ("->", DOT);
                        (";;", EOF);
+                       ("~-.", FNEG);
                        ("~-", NEG);
                        ("+", PLUS);
                        ("-", MINUS);
                        ("*", TIMES);
                        ("(", OPEN);
-                       (")", CLOSE)
+                       (")", CLOSE);
+                       ("+.", FPLUS);
+                       ("-.", FMINUS);
+                       ("*.", FTIMES);
+                       ("**", FPOWER);
+                       ("^", CONCAT)
                      ]
 }
 
 let digit = ['0'-'9']
-let id = ['a'-'z'] ['a'-'z' '0'-'9']*
+let id = ['a'-'z'] ['a'-'z' 'A'-'Z' '0'-'9']*
 let sym = ['(' ')'] | (['$' '&' '*' '+' '-' '/' '=' '<' '>' '^'
                             '.' '~' ';' '!' '?' '%' ':' '#']+)
 let unit = "()"
@@ -53,10 +59,18 @@ let unit = "()"
 rule token = parse
   | unit
         { UNIT }
+  | digit+ '.' digit+? as ifloat
+        { let f = float_of_string ifloat in
+          FLOAT f
+        }
   | digit+ as inum
         { let num = int_of_string inum in
           INT num
         }
+  | ''' (. as c) '''
+        { CHAR c }
+  | '"' (.* as s) '"'
+        { STRING s }
   | id as word
         { try
             let token = Hashtbl.find keyword_table word in

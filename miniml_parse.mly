@@ -23,9 +23,17 @@
 %token FUNCTION
 %token RAISE
 %token <string> ID
-%token <int> INT 
+%token <int> INT
+%token <float> FLOAT
+%token <char> CHAR
+%token <string> STRING
 %token TRUE FALSE
 %token UNIT
+%token FNEG
+%token FPLUS FMINUS
+%token FTIMES
+%token FPOWER
+%token CONCAT
 
 (* Associativity and precedence *)
 %nonassoc IF
@@ -62,10 +70,19 @@ expnoapp: INT                   { Num $1 }
         | LET ID EQUALS exp IN exp      { Let($2, $4, $6) }
         | LET REC ID EQUALS exp IN exp  { Letrec($3, $5, $7) }
         | FUNCTION ID DOT exp   { Fun($2, $4) }
-        | FUNCTION UNIT DOT exp { UnitFun($4) }
+        | FUNCTION UNIT DOT exp { UnitFun $4 }
         | RAISE                 { Raise }
         | OPEN exp CLOSE        { $2 }
         | UNIT                  { Unit }
+        | FLOAT                 { Float $1 }
+        | CHAR                  { Char $1 }
+        | STRING                { String $1 }
+        | exp FPLUS exp         { Binop(FPlus, $1, $3) }
+        | exp FMINUS exp        { Binop(FMinus, $1, $3) }
+        | exp FTIMES exp        { Binop(FTimes, $1, $3) }
+        | exp FPOWER exp        { Binop(FPower, $1, $3) }
+        | FNEG exp              { Unop(FNegate, $2) }
+        | exp CONCAT exp        { Binop(Concat, $1, $3) }
 ;
 
 %%
