@@ -25,6 +25,8 @@ type binop =
   | FTimes
   | FPower
   | Concat
+  | Cons
+  | Append
 ;;
 
 (* Variable identifers *)
@@ -50,9 +52,9 @@ type expr =
   | Unassigned                           (* (temporarily) unassigned *)
   | App of expr * expr                   (* function applications *)
   | List of expr list_internal           (* lists *)
-and 'a list_internal =
-  | Empty
-  | Cons of 'a * 'a list_internal
+ and 'a list_internal =
+   | Empty
+   | Cons of 'a * 'a list_internal
 ;;
     
 (*......................................................................

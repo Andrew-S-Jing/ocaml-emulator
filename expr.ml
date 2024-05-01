@@ -25,6 +25,8 @@ type binop =
   | FTimes
   | FPower
   | Concat
+  | Cons
+  | Append
 ;;
 
 type varid = string ;;
@@ -48,9 +50,9 @@ type expr =
   | Unassigned                           (* (temporarily) unassigned *)
   | App of expr * expr                   (* function applications *)
   | List of expr list_internal           (* lists *)
-and 'a list_internal =
-  | Empty
-  | Cons of 'a * 'a list_internal
+ and 'a list_internal =
+   | Empty
+   | Cons of 'a * 'a list_internal
 ;;
   
 (*......................................................................
@@ -101,7 +103,8 @@ let rec free_vars (exp : expr) : varidset =
   | Unassigned -> SS.empty
   | App (f, x) -> SS.union (free_vars f) (free_vars x)
   | List Empty -> SS.empty
-  | List (Cons (hd, tl)) -> SS.union (free_vars hd) (free_vars (List tl)) ;;
+  | List (Cons (hd, tl)) ->
+      SS.union (free_vars hd) (free_vars (List tl)) ;;
   
 (* new_varname () -- Returns a freshly minted `varid` with prefix
    "var" and a running counter a la `gensym`. Assumes no other
@@ -211,7 +214,9 @@ let exp_to_concrete_string (exp : expr) : string =
             | FMinus -> "-."
             | FTimes -> "*."
             | FPower -> "**"
-            | Concat -> "^" in
+            | Concat -> "^"
+            | Cons -> "::"
+            | Append -> "@" in
           parenthensize (String.concat " " [to_string' x; op_str; to_string' y])
       | Conditional (c, t, f) ->
           String.concat "" ["if "; to_string' c; " then"; enter_tab;
@@ -273,7 +278,9 @@ let exp_to_abstract_string (exp : expr) : string =
           | FMinus -> "FMinus"
           | FTimes -> "FTimes"
           | FPower -> "FPower"
-          | Concat -> "Concat" in
+          | Concat -> "Concat"
+          | Cons -> "Cons"
+          | Append -> "Append" in
         form "Binop" [op_name; to_string x; to_string y]
     | Conditional (c, t, f) ->
         form "Conditional" [to_string c; to_string t; to_string f]
