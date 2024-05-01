@@ -12,6 +12,8 @@ let cTAB_SIZE = 2 ;;
 type unop =
   | Negate
   | FNegate
+  | Head
+  | Tail
 ;;
     
 type binop =
@@ -50,6 +52,7 @@ type expr =
   | Unassigned                           (* (temporarily) unassigned *)
   | App of expr * expr                   (* function applications *)
   | List of expr list_internal           (* lists *)
+  | ClosList of varid list_internal      (* lists of closures (undeclarable) *)
  and 'a list_internal =
    | Empty
    | Cons of 'a * 'a list_internal
@@ -104,7 +107,8 @@ let rec free_vars (exp : expr) : varidset =
   | App (f, x) -> SS.union (free_vars f) (free_vars x)
   | List Empty -> SS.empty
   | List (Cons (hd, tl)) ->
-      SS.union (free_vars hd) (free_vars (List tl)) ;;
+      SS.union (free_vars hd) (free_vars (List tl))
+  | ClosList _ -> raise (Failure "free_vars: closure in eval_s model") ;;
   
 (* new_varname () -- Returns a freshly minted `varid` with prefix
    "var" and a running counter a la `gensym`. Assumes no other
@@ -172,7 +176,8 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
         match subst' (List tl) with
         | List x -> x
         | _ -> raise (Failure "reached impossible branch") in
-      List (Cons (subst' hd, tl')) ;;
+      List (Cons (subst' hd, tl'))
+  | ClosList _ -> raise (Failure "subst: closure in eval_s model") ;;
      
 (*......................................................................
   String representations of expressions
@@ -201,7 +206,13 @@ let exp_to_concrete_string (exp : expr) : string =
            | Negate, Num n -> to_string' (Num ~-n)
            | FNegate, Float f -> to_string' (Float ~-.f)
            | Negate, _ -> "~-" ^ to_string' x
-           | FNegate, _ -> "~-." ^ to_string' x)
+           | FNegate, _ -> "~-." ^ to_string' x
+           | Head, List (Cons (hd, _tl)) -> to_string' hd
+           | Head, ClosList (Cons (hd, _tl)) -> "env: " ^ hd
+           | Tail, List (Cons (_hd, tl)) -> to_string' (List tl)
+           | Tail, ClosList (Cons (_hd, tl)) -> to_string' (ClosList tl)
+           | Head, _ -> "head " ^ to_string' x
+           | Tail, _ -> "tail " ^ to_string' x)
       | Binop (op, x, y) ->
           let op_str = 
             match op with
@@ -236,10 +247,15 @@ let exp_to_concrete_string (exp : expr) : string =
       | Unassigned -> "Unassigned"
       | App (f, x) ->
           parenthensize (String.concat " " [to_string' f; to_string' x])
-      | List Empty -> if is_list then "]" else "[]"
+      | List Empty
+      | ClosList Empty -> if is_list then "]" else "[]"
       | List (Cons (hd, tl)) ->
           let start = if is_list then "" else "[" in
-          start ^ (to_string' hd) ^ (to_string ~is_list:true tabs (List tl)) in
+          start ^ (to_string' hd) ^ (to_string ~is_list:true tabs (List tl))
+      | ClosList (Cons (hd, tl)) ->
+          let start = if is_list then "" else "[" in
+          start ^ "closure: " ^ hd
+                ^ (to_string ~is_list:true tabs (ClosList tl)) in
     str in
   to_string 0 exp ;;
 
@@ -265,7 +281,9 @@ let exp_to_abstract_string (exp : expr) : string =
     | Unop (op, x) ->
         (match op with
          | Negate -> form "Unop" ["Negate"; to_string x]
-         | FNegate -> form "Unop" ["FNegate"; to_string x])
+         | FNegate -> form "Unop" ["FNegate"; to_string x]
+         | Head -> form "Unop" ["Head"; to_string x]
+         | Tail -> form "Unop" ["Tail"; to_string x])
     | Binop (op, x, y) ->
         let op_name =
           match op with
@@ -292,5 +310,8 @@ let exp_to_abstract_string (exp : expr) : string =
     | Unassigned -> "Unassigned"
     | App (f, x) -> form "App" [to_string f; to_string x]
     | List Empty -> "List(Empty)"
-    | List (Cons (hd, tl)) -> form "List" [to_string hd; to_string (List tl)] in
+    | ClosList Empty -> "ClosList(Empty)"
+    | List (Cons (hd, tl)) -> form "List" [to_string hd; to_string (List tl)]
+    | ClosList (Cons (hd, tl)) ->
+        form "ClosList" ["closure: " ^ hd; to_string (ClosList tl)] in
   to_string exp ;;

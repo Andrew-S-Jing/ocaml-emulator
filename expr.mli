@@ -11,6 +11,8 @@
 type unop =
   | Negate
   | FNegate
+  | Head
+  | Tail
 ;;
 
 (* Binary operators *)
@@ -52,6 +54,7 @@ type expr =
   | Unassigned                           (* (temporarily) unassigned *)
   | App of expr * expr                   (* function applications *)
   | List of expr list_internal           (* lists *)
+  | ClosList of varid list_internal      (* lists of closures (undeclarable) *)
  and 'a list_internal =
    | Empty
    | Cons of 'a * 'a list_internal
