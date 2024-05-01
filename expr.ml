@@ -250,8 +250,9 @@ let exp_to_concrete_string (exp : expr) : string =
       | List Empty
       | ClosList Empty -> if is_list then "]" else "[]"
       | List (Cons (hd, tl)) ->
-          let start = if is_list then "" else "[" in
-          start ^ (to_string' hd) ^ (to_string ~is_list:true tabs (List tl))
+          let start, sep = if is_list then "", "; " else "[", "" in
+          start ^ sep ^ (to_string' hd)
+                ^ (to_string ~is_list:true tabs (List tl))
       | ClosList (Cons (hd, tl)) ->
           let start = if is_list then "" else "[" in
           start ^ "closure: " ^ hd

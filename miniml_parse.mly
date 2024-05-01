@@ -34,14 +34,22 @@
 %token FTIMES
 %token FPOWER
 %token CONCAT
+%token HEAD TAIL
+%token LOPEN LCLOSE
+%token LSEP
+%token LEMPTY
+%token CONS
+%token APPEND
+%token NOSTRING
 
 (* Associativity and precedence *)
 %nonassoc IF
 %left LESSTHAN EQUALS
+%right APPEND CONCAT
+%right CONS
 %left PLUS MINUS FPLUS FMINUS
 %left TIMES FTIMES
 %left FPOWER
-%left CONCAT
 %nonassoc NEG FNEG
 
 (* Start symbol of the grammar and its type *)
@@ -78,6 +86,7 @@ expnoapp: INT                   { Num $1 }
         | UNIT                  { Unit }
         | FLOAT                 { Float $1 }
         | CHAR                  { Char $1 }
+        | NOSTRING              { String "" }
         | STRING                { String $1 }
         | exp FPLUS exp         { Binop(FPlus, $1, $3) }
         | exp FMINUS exp        { Binop(FMinus, $1, $3) }
@@ -87,6 +96,15 @@ expnoapp: INT                   { Num $1 }
         | exp CONCAT exp        { Binop(Concat, $1, $3) }
         | LET ID ID EQUALS exp IN exp     { Let($2, Fun($3, $5), $7) }
         | LET REC ID ID EQUALS exp IN exp { Letrec($3, Fun($4, $6), $8)}
+        | LEMPTY                { List Empty }
+        | LOPEN exp LCLOSE      { List(Cons($2, Empty)) }
+        | LOPEN exp LSEP LCLOSE           { List(Cons($2, Empty)) }
+        | LOPEN exp LSEP exp LCLOSE       { List(Cons($2, Cons($4, Empty))) }
+        | LOPEN exp LSEP exp LSEP LCLOSE  { List(Cons($2, Cons($4, Empty))) }
+        | exp CONS exp          { Binop(Cons, $1, $3) }
+        | exp APPEND exp        { Binop(Append, $1, $3) }
+        | HEAD exp              { Unop(Head, $2) }
+        | TAIL exp              { Unop(Tail, $2) }
 ;
 
 %%

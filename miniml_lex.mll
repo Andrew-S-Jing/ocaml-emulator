@@ -25,7 +25,9 @@
                        ("true", TRUE);
                        ("false", FALSE);
                        ("fun", FUNCTION);
-                       ("function", FUNCTION)
+                       ("function", FUNCTION);
+                       ("head", HEAD);
+                       ("tail", TAIL);
                      ]
                      
   let sym_table = 
@@ -46,20 +48,28 @@
                        ("-.", FMINUS);
                        ("*.", FTIMES);
                        ("**", FPOWER);
-                       ("^", CONCAT)
+                       ("^", CONCAT);
+                       ("::", CONS);
+                       ("@", APPEND);
+                       ("[", LOPEN);
+                       ("]", LCLOSE);
+                       (";", LSEP);
                      ]
 }
 
 let digit = ['0'-'9']
 let id = ['a'-'z'] ['a'-'z' 'A'-'Z' '0'-'9']*
-let sym = ['(' ')'] | (['$' '&' '*' '+' '-' '/' '=' '<' '>' '^'
-                            '.' '~' ';' '!' '?' '%' ':' '#']+)
-let unit = "()"
+let sym =
+  ['(' ')' '[' ']']
+  | (['$' '&' '*' '+' '-' '/' '=' '<' '>' '^'
+          '.' '~' ';' '!' '?' '%' ':' '#' '@']+)
 let char = ['a'-'z' 'A'-'Z' '0'-'9' ' ']
 
 rule token = parse
-  | unit
+  | "()"
         { UNIT }
+  | "[]"
+        { LEMPTY }
   | digit+ '.' digit+? as ifloat
         { let f = float_of_string ifloat in
           FLOAT f
@@ -70,6 +80,8 @@ rule token = parse
         }
   | ''' (char as c) '''
         { CHAR c }
+  | "\"\""
+        { NOSTRING }
   | '"' (char+ as s) '"'
         { STRING s }
   | id as word

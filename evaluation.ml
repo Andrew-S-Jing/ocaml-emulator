@@ -436,8 +436,9 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
                   | Val x -> x
                   | _ -> raise (Failure "eval_l: unexpected Closure") in
                 eval_l' (Binop (Cons, hd, tl')))
-       | Append, Closure (ClosList a, aenv), Closure (ClosList b, benv) ->
-           (match a with
+       | Append, Closure (ClosList _a, _aenv), Closure (ClosList _b, _benv) ->
+           failwith "Append: type inference not yet implemented for ClosLists"
+           (* (match a with
             | Empty -> Closure (ClosList b, benv)
             | Cons (hd, tl) ->
                 let tl', tl'env =
@@ -445,7 +446,7 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
                   | Closure (ClosList x, e) -> x, e
                   | _ -> raise (Failure "eval_l: unexpected Val") in
                 let env' = Env.extend tl'env hd (ref (Env.lookup aenv hd)) in
-                Closure (ClosList (Cons (hd, tl')), env'))
+                Closure (ClosList (Cons (hd, tl')), env')) *)
        | x, _, _ ->
            let o, t =
              match x with
@@ -493,18 +494,7 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
        | Closure _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
        | _ -> raise (Failure "eval_l: expects type \"Fun\" as a closure"))
   | List Empty -> Val (List Empty)
-  | List (Cons (hd, tl)) ->
-      (match eval_l' hd, eval_l' (List tl) with
-       | Val a, Val (List b) -> Val (List (Cons (a, b)))
-       | Closure a, Val (List Empty) ->
-           let env_var = new_varname () in
-           Closure (ClosList (Cons (env_var, Empty)),
-                    (Env.extend env env_var (ref (Env.Closure a))))
-       | Closure a, Closure (ClosList b, benv) ->
-           let env_var = new_varname () in
-           Closure (ClosList (Cons (env_var, b)),
-                    (Env.extend benv env_var (ref (Env.Closure a))))
-       | _ -> raise (EvalError "List expects type 'a and 'a list"))
+  | List (Cons (hd, tl)) -> eval_l' (Binop (Cons, hd, (List tl)))
   | ClosList _ -> raise (Failure "ClosList is undeclarable")
 
 
