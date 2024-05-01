@@ -28,6 +28,7 @@
                        ("function", FUNCTION);
                        ("head", HEAD);
                        ("tail", TAIL);
+                       ("ref", REF);
                      ]
                      
   let sym_table = 
@@ -42,18 +43,20 @@
                        ("+", PLUS);
                        ("-", MINUS);
                        ("*", TIMES);
+                       ("/", DIVIDE);
                        ("(", OPEN);
                        (")", CLOSE);
                        ("+.", FPLUS);
                        ("-.", FMINUS);
                        ("*.", FTIMES);
-                       ("**", FPOWER);
+                       ("/.", FDIVIDE);
                        ("^", CONCAT);
                        ("::", CONS);
-                       ("@", APPEND);
                        ("[", LOPEN);
                        ("]", LCLOSE);
-                       (";", LSEP);
+                       (";", SCOLON);
+                       ("!", DEREF);
+                       (":=", ASSIGN);
                      ]
 }
 
@@ -61,8 +64,7 @@ let digit = ['0'-'9']
 let id = ['a'-'z'] ['a'-'z' 'A'-'Z' '0'-'9']*
 let sym =
   ['(' ')' '[' ']']
-  | (['$' '&' '*' '+' '-' '/' '=' '<' '>' '^'
-          '.' '~' ';' '!' '?' '%' ':' '#' '@']+)
+  | (['$' '&' '*' '+' '-' '/' '=' '<' '>' '^' '.' '~' ';' '!' '?' '%' ':' '#']+)
 let char = ['a'-'z' 'A'-'Z' '0'-'9' ' ']
 
 rule token = parse

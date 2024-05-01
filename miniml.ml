@@ -53,6 +53,7 @@ let repl () =
       | MP.Error -> printf "xx> parse error\n"
       | Ev.EvalError msg -> printf "xx> evaluation error: %s\n" msg
       | Ev.EvalException -> printf "xx> evaluation exception\n"
+      | Failure msg -> printf "xx> evaluator failure: %s\n" msg
       | End_of_file -> printf "Goodbye.\n"; exit 0
     );
     flush stdout

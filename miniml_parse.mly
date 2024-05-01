@@ -17,7 +17,7 @@
 %token LET DOT IN REC
 %token NEG
 %token PLUS MINUS 
-%token TIMES
+%token TIMES DIVIDE
 %token LESSTHAN EQUALS
 %token IF THEN ELSE 
 %token FUNCTION
@@ -31,26 +31,28 @@
 %token UNIT
 %token FNEG
 %token FPLUS FMINUS
-%token FTIMES
-%token FPOWER
+%token FTIMES FDIVIDE
 %token CONCAT
 %token HEAD TAIL
 %token LOPEN LCLOSE
-%token LSEP
+%token SCOLON
 %token LEMPTY
 %token CONS
-%token APPEND
 %token NOSTRING
+%token REF DEREF
+%token ASSIGN
 
 (* Associativity and precedence *)
+%right SCOLON
 %nonassoc IF
+%right ASSIGN
 %left LESSTHAN EQUALS
-%right APPEND CONCAT
+%right CONCAT
 %right CONS
 %left PLUS MINUS FPLUS FMINUS
-%left TIMES FTIMES
-%left FPOWER
+%left TIMES DIVIDE FTIMES FDIVIDE
 %nonassoc NEG FNEG
+%nonassoc DEREF
 
 (* Start symbol of the grammar and its type *)
 %start input
@@ -73,6 +75,7 @@ expnoapp: INT                   { Num $1 }
         | exp PLUS exp          { Binop(Plus, $1, $3) }
         | exp MINUS exp         { Binop(Minus, $1, $3) }
         | exp TIMES exp         { Binop(Times, $1, $3) }
+        | exp DIVIDE exp        { Binop(Divide, $1, $3) }
         | exp EQUALS exp        { Binop(Equals, $1, $3) }
         | exp LESSTHAN exp      { Binop(LessThan, $1, $3) }
         | NEG exp               { Unop(Negate, $2) }
@@ -80,7 +83,7 @@ expnoapp: INT                   { Num $1 }
         | LET ID EQUALS exp IN exp        { Let($2, $4, $6) }
         | LET REC ID EQUALS exp IN exp    { Letrec($3, $5, $7) }
         | FUNCTION ID DOT exp   { Fun($2, $4) }
-        | FUNCTION UNIT DOT exp { UnitFun $4 }
+        | FUNCTION UNIT DOT exp { FunUnit $4 }
         | RAISE                 { Raise }
         | OPEN exp CLOSE        { $2 }
         | UNIT                  { Unit }
@@ -91,20 +94,32 @@ expnoapp: INT                   { Num $1 }
         | exp FPLUS exp         { Binop(FPlus, $1, $3) }
         | exp FMINUS exp        { Binop(FMinus, $1, $3) }
         | exp FTIMES exp        { Binop(FTimes, $1, $3) }
-        | exp FPOWER exp        { Binop(FPower, $1, $3) }
+        | exp FDIVIDE exp        { Binop(FDivide, $1, $3) }
         | FNEG exp              { Unop(FNegate, $2) }
         | exp CONCAT exp        { Binop(Concat, $1, $3) }
-        | LET ID ID EQUALS exp IN exp     { Let($2, Fun($3, $5), $7) }
-        | LET REC ID ID EQUALS exp IN exp { Letrec($3, Fun($4, $6), $8)}
+        | LET ID fun_construct exp        { Let($2, $3, $4) }
+        | LET REC ID fun_construct exp    { Letrec($3, $4, $5) }
         | LEMPTY                { List Empty }
-        | LOPEN exp LCLOSE      { List(Cons($2, Empty)) }
-        | LOPEN exp LSEP LCLOSE           { List(Cons($2, Empty)) }
-        | LOPEN exp LSEP exp LCLOSE       { List(Cons($2, Cons($4, Empty))) }
-        | LOPEN exp LSEP exp LSEP LCLOSE  { List(Cons($2, Cons($4, Empty))) }
+        | LOPEN list_elt LCLOSE { List $2 }
         | exp CONS exp          { Binop(Cons, $1, $3) }
-        | exp APPEND exp        { Binop(Append, $1, $3) }
         | HEAD exp              { Unop(Head, $2) }
         | TAIL exp              { Unop(Tail, $2) }
+        | REF exp               { Unop(Ref, $2) }
+        | DEREF exp             { Unop(Deref, $2) }
+        | exp ASSIGN exp        { Binop(Assign, $1, $3) }
+        | exp SCOLON exp        { LetUnit($1, $3) }
+        | LET UNIT EQUALS exp IN exp      { LetUnit($4, $6) }
+
+list_elt: exp                             { Cons($1, Empty) }
+        | exp SCOLON                      { Cons($1, Empty) }
+        | exp SCOLON list_elt SCOLON      { Cons($1, $3) }
+        | exp SCOLON list_elt             { Cons($1, $3) }
+
+fun_construct: UNIT EQUALS exp IN         { FunUnit $3 }
+             | ID EQUALS exp IN           { Fun($1, $3) }
+             | UNIT fun_construct         { FunUnit $2 }
+             | ID fun_construct           { Fun($1, $2) }
+
 ;
 
 %%

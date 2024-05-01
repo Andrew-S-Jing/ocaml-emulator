@@ -13,6 +13,8 @@ type unop =
   | FNegate
   | Head
   | Tail
+  | Ref
+  | Deref
 ;;
 
 (* Binary operators *)
@@ -20,15 +22,16 @@ type binop =
   | Plus
   | Minus
   | Times
+  | Divide
   | Equals
   | LessThan
   | FPlus
   | FMinus
   | FTimes
-  | FPower
+  | FDivide
   | Concat
   | Cons
-  | Append
+  | Assign
 ;;
 
 (* Variable identifers *)
@@ -47,9 +50,10 @@ type expr =
   | Binop of binop * expr * expr         (* binary operators *)
   | Conditional of expr * expr * expr    (* if then else *)
   | Fun of varid * expr                  (* function definitions *)
-  | UnitFun of expr                      (* function of type unit -> 'a *)
+  | FunUnit of expr                      (* function of type unit -> 'a *)
   | Let of varid * expr * expr           (* local naming *)
   | Letrec of varid * expr * expr        (* recursive local naming *)
+  | LetUnit of expr * expr               (* let () = P in Q *)
   | Raise                                (* exceptions *)
   | Unassigned                           (* (temporarily) unassigned *)
   | App of expr * expr                   (* function applications *)
@@ -79,8 +83,14 @@ val vars_of_list : varid list -> varidset ;;
    variables in `exp` *)
 val free_vars : expr -> varidset ;;
 
-(* new_varname () -- Returns a freshly minted `varid` *)
+(* new_varname () -- Returns a freshly minted varname-type `varid` *)
 val new_varname : unit -> varid ;;
+
+(* new_refname () -- Returns a freshly minted refname-type `varid` *)
+val new_refname : unit -> varid ;;
+
+(* is_refname v -- Returns true if v starts with "_l" (i.e. is a refname) *)
+val is_refname : varid -> bool ;;
 
 (*......................................................................
   Substitution 
