@@ -653,4 +653,4 @@ let rec eval_e (exp : expr)
    above, not the `evaluate` function, so it doesn't matter how it's
    set when you submit your solution.) *)
    
-let evaluate = eval_l ;;
+let evaluate = eval_e ;;

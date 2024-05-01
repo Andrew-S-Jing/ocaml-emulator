@@ -25,7 +25,9 @@ let repl () =
   (* lexical analyzer buffer from stdin *)
   let lexbuf = Lexing.from_channel stdin in
   (* set up the initial environment *)
-  let env = Ev.Env.empty () in
+  let env = ref (Ev.Env.empty ()) in
+  (* set up the initial store *)
+  let store = ref (Ev.Env.empty ()) in
 
   (* the main LOOP *)
   while true do
@@ -37,7 +39,7 @@ let repl () =
         let exp = MP.input ML.token lexbuf in 
         
         (* EVALuate it *)
-        let res = Ev.evaluate exp env in
+        let res, store' = Ev.evaluate exp !env !store in
          
         (* PRINT the result; in this initial version, the trivial
            evaluator just returns the expression unchanged as an
