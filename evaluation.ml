@@ -139,14 +139,16 @@ module Env : ENV =
 (* The TRIVIAL EVALUATOR, which leaves the expression to be evaluated
    essentially unchanged, just converted to a value for consistency
    with the signature of the evaluators. *)
-   
-let eval_t (exp : expr) (_env : Env.env) : Env.value =
+
+open Env ;;
+
+let eval_t (exp : expr) (_env : env) : value =
   (* coerce the expr, unchanged, into a value *)
-  Env.Val exp ;;
+  Val exp ;;
 
 (* The SUBSTITUTION MODEL evaluator -- to be completed *)
    
-let eval_s (exp : expr) (_env : Env.env) : Env.value =
+let eval_s (exp : expr) (_env : env) : value =
   let rec eval_s' e =
     match e with
     | Var v -> raise (EvalError ("unbound variable: " ^ v))
@@ -249,15 +251,15 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
          | List x -> eval_s' (Binop (Cons, hd, List x))
          | _ -> raise (EvalError "Cons should be onto type 'a list"))
     | ClosList _ -> raise (EvalError "eval_s: unexpected closure") in
-  Env.Val (eval_s' exp) ;;
+  Val (eval_s' exp) ;;
      
 (* The DYNAMICALLY-SCOPED ENVIRONMENT MODEL evaluator -- to be
    completed *)
    
-let rec eval_d (exp : expr) (env : Env.env) : Env.value =
+let rec eval_d (exp : expr) (env : env) : value =
   let eval_d' e = eval_d e env in
   match exp with
-  | Var v -> Env.lookup env v
+  | Var v -> lookup env v
   | Unit -> Val Unit
   | Num n -> Val (Num n)
   | Float f -> Val (Float f)
@@ -329,7 +331,7 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
   | FunUnit x -> Val (FunUnit x)
   | FunWild x -> Val (FunWild x)
   | Let (v, x, y)
-  | Letrec (v, x, y) -> eval_d y (Env.extend env v (ref (eval_d' x)))
+  | Letrec (v, x, y) -> eval_d y (extend env v (ref (eval_d' x)))
   | LetUnit (x, y) ->
       (match eval_d' x with
        | Val Unit -> eval_d' y
@@ -340,7 +342,7 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
   | App (f, x) ->
       (match eval_d' f, eval_d' x with
        | Val (Fun (v, f')), (Val _ as x') -> 
-           eval_d f' (Env.extend env v (ref x'))
+           eval_d f' (extend env v (ref x'))
        | Val (FunUnit f'), Val unit_ ->
            if unit_ = Unit then eval_d' f'
            else raise (EvalError "Fun app expects type unit")
@@ -360,10 +362,10 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
 (* The LEXICALLY-SCOPED ENVIRONMENT MODEL evaluator -- optionally
    completed as (part of) your extension *)
    
-let rec eval_l (exp : expr) (env : Env.env) : Env.value =
+let rec eval_l (exp : expr) (env : env) : value =
   let eval_l' e = eval_l e env in
   match exp with
-  | Var v -> Env.lookup env v
+  | Var v -> lookup env v
   | Unit -> Val Unit
   | Num n -> Val (Num n)
   | Float f -> Val (Float f)
@@ -375,7 +377,7 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
        | Negate, Val (Num n) -> Val (Num ~-n)
        | FNegate, Val (Float f) -> Val (Float ~-.f)
        | Head, Val (List (Cons (hd, _tl))) -> Val hd
-       | Head, Closure (ClosList (Cons (hd, _tl)), e) -> Env.lookup e hd
+       | Head, Closure (ClosList (Cons (hd, _tl)), e) -> lookup e hd
        | Tail, Val (List (Cons (_hd, tl))) -> Val (List tl)
        | Tail, Closure (ClosList (Cons (_hd, tl)), e) ->
            Closure (ClosList tl, e)
@@ -407,7 +409,7 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
        | Cons, Closure a, Closure (ClosList Empty, _) ->
            let elt_env = new_varname () in
            Closure (ClosList (Cons (elt_env, Empty)),
-                    Env.extend env elt_env (ref (Env.Closure a)))
+                    extend env elt_env (ref (Closure a)))
        | Cons, Val a, Val (List (Cons (b, _) as tl)) ->
            (match a, b with
             | Unit, Unit
@@ -422,7 +424,7 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
             | _ -> raise (EvalError "(::) expects type 'a and 'a list"))
        | Cons, Closure (a, aenv),
                Closure (ClosList (Cons (b, _) as tl), benv) ->
-           (match a, Env.lookup benv b with
+           (match a, lookup benv b with
             | Unit, Closure (Unit, _)
             | Num _, Closure (Num _, _)
             | Float _, Closure (Float _, _)
@@ -435,7 +437,7 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
             | ClosList _, Closure (ClosList _, _) ->
                 let elt_env = new_varname () in
                 Closure (ClosList (Cons (elt_env, tl)),
-                         Env.extend env elt_env (ref (Env.Closure (a, aenv))))
+                         extend env elt_env (ref (Closure (a, aenv))))
             | _ -> raise (EvalError "(::) expects type 'a and 'a list"))
        | x, _, _ ->
            let o, t =
@@ -464,12 +466,12 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
   (* Let statement's lexical scoping needs to not be affected by future
      dynamical changes, so the downstream evaluation needs to have different
      value pointers, thus the `Env.copy` result being passed downstream. *)
-  | Let (v, x, y) -> eval_l y (Env.extend (Env.copy env) v (ref (eval_l' x)))
+  | Let (v, x, y) -> eval_l y (extend (copy env) v (ref (eval_l' x)))
   (* Letrec statement here follows the workaround enabled by the `Unassigned`
      constructor of the `Env.value` type *)
   | Letrec (v, x, y) ->
-      let rec_pointer = ref (Env.Val Unassigned) in
-      let env_lex = Env.extend env v rec_pointer in
+      let rec_pointer = ref (Val Unassigned) in
+      let env_lex = extend env v rec_pointer in
       let v_D = eval_l x env_lex in
       rec_pointer := v_D;
       eval_l y env_lex
@@ -484,7 +486,7 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
       let dynamic = env in
       (match eval_l f dynamic, eval_l x dynamic with
        | Closure (Fun (v, f'), lexical), (Val _ as x') ->
-           eval_l f' (Env.extend lexical v (ref x'))
+           eval_l f' (extend lexical v (ref x'))
        | Closure (FunUnit f', lexical), Val unit_ ->
            if unit_ = Unit then eval_l f' lexical
            else raise (EvalError "Fun app expects type ()")
@@ -501,11 +503,7 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
    correctness-compatible with one of the above, you can incorporate
    your extensions within `eval_s`, `eval_d`, or `eval_l`. *)
 
-let rec eval_e (exp : expr)
-               (env : Env.env)
-               (store : Env.env)
-              : Env.value * Env.env =
-  let open Env in
+let rec eval_e (exp : expr) (env : env) (store : env) : value * env =
   let eval_e' e = eval_e e env store in
   match exp with
   | Var v -> lookup env v, store
