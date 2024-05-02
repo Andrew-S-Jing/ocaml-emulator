@@ -628,9 +628,14 @@ let rec eval_e (exp : expr) (env : env) (store : env) : value * env =
       constructor of the `Env.value` type *)
   | Letrec (v, x, y) ->
       let refid = new_refname () in
+      let env' = extend env v (ref (Val (Var refid))) in
+      let v_D, store' =
+        eval_e (subst v (Unop (Deref, Var v)) x)
+                env'
+               (extend store refid (ref (Val Unassigned))) in
       eval_e (subst v (Unop (Deref, Var v)) y)
-             (extend env v (ref (Val (Var refid))))
-             (extend store refid (ref (Val Unassigned)))
+              env'
+             (extend store' refid (ref v_D))
   | LetUnit (x, y) ->
       (match eval_e' x with
        | Val Unit, store' -> eval_e y env store'
