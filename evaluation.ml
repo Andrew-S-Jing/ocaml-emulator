@@ -176,7 +176,13 @@ let eval_s (exp : expr) (_env : env) : value =
          | Minus, Num a, Num b -> Num (a - b)
          | Times, Num a, Num b -> Num (a * b)
          | Divide, Num a, Num b -> Num (a / b)
-         | Equals, a, b -> Bool (a = b)
+         | Equals, Unit, Unit -> Bool true
+         | Equals, Num a, Num b -> Bool (a = b)
+         | Equals, Float a, Float b -> Bool (a = b)
+         | Equals, Bool a, Bool b -> Bool (a = b)
+         | Equals, Char a, Char b -> Bool (a = b)
+         | Equals, String a, String b -> Bool (a = b)
+         | Equals, List a, List b -> Bool (a = b)
          | LessThan, Num a, Num b -> Bool (a < b)
          | LessThan, Float a, Float b -> Bool (a < b)
          | FPlus, Float a, Float b -> Float (a +. b)
@@ -283,7 +289,13 @@ let rec eval_d (exp : expr) (env : env) : value =
        | Minus, Val (Num a), Val (Num b) -> Val (Num (a - b))
        | Times, Val (Num a), Val (Num b) -> Val (Num (a * b))
        | Divide, Val (Num a), Val (Num b) -> Val (Num (a / b))
-       | Equals, a, b -> Val (Bool (a = b))
+       | Equals, Val Unit, Val Unit -> Val (Bool true)
+       | Equals, Val (Num a), Val (Num b) -> Val (Bool (a = b))
+       | Equals, Val (Float a), Val (Float b) -> Val (Bool (a = b))
+       | Equals, Val (Bool a), Val (Bool b) -> Val (Bool (a = b))
+       | Equals, Val (Char a), Val (Char b) -> Val (Bool (a = b))
+       | Equals, Val (String a), Val (String b) -> Val (Bool (a = b))
+       | Equals, Val (List a), Val (List b) -> Val (Bool (a = b))
        | LessThan, Val (Num a), Val (Num b) -> Val (Bool (a < b))
        | LessThan, Val (Float a), Val (Float b) -> Val (Bool (a < b))
        | FPlus, Val (Float a), Val (Float b) -> Val (Float (a +. b))
@@ -391,7 +403,13 @@ let rec eval_l (exp : expr) (env : env) : value =
        | Minus, Val (Num a), Val (Num b) -> Val (Num (a - b))
        | Times, Val (Num a), Val (Num b) -> Val (Num (a * b))
        | Divide, Val (Num a), Val (Num b) -> Val (Num (a / b))
-       | Equals, a, b -> Val (Bool (a = b))
+       | Equals, Val Unit, Val Unit -> Val (Bool true)
+       | Equals, Val (Num a), Val (Num b) -> Val (Bool (a = b))
+       | Equals, Val (Float a), Val (Float b) -> Val (Bool (a = b))
+       | Equals, Val (Bool a), Val (Bool b) -> Val (Bool (a = b))
+       | Equals, Val (Char a), Val (Char b) -> Val (Bool (a = b))
+       | Equals, Val (String a), Val (String b) -> Val (Bool (a = b))
+       | Equals, Val (List a), Val (List b) -> Val (Bool (a = b))
        | LessThan, Val (Num a), Val (Num b) -> Val (Bool (a < b))
        | LessThan, Val (Float a), Val (Float b) -> Val (Bool (a < b))
        | FPlus, Val (Float a), Val (Float b) -> Val (Float (a +. b))
@@ -539,7 +557,13 @@ let rec eval_e (exp : expr) (env : env) (store : env) : value * env =
        | Minus, Val (Num a), Val (Num b) -> Val (Num (a - b)), store''
        | Times, Val (Num a), Val (Num b) -> Val (Num (a * b)), store''
        | Divide, Val (Num a), Val (Num b) -> Val (Num (a / b)), store''
-       | Equals, _, _ -> Val (Bool (x' = y')), store''
+       | Equals, Val Unit, Val Unit -> Val (Bool true), store''
+       | Equals, Val (Num a), Val (Num b) -> Val (Bool (a = b)), store''
+       | Equals, Val (Float a), Val (Float b) -> Val (Bool (a = b)), store''
+       | Equals, Val (Bool a), Val (Bool b) -> Val (Bool (a = b)), store''
+       | Equals, Val (Char a), Val (Char b) -> Val (Bool (a = b)), store''
+       | Equals, Val (String a), Val (String b) -> Val (Bool (a = b)), store''
+       | Equals, Val (List a), Val (List b) -> Val (Bool (a = b)), store''
        | LessThan, Val (Num a), Val (Num b) -> Val (Bool (a < b)), store''
        | LessThan, Val (Float a), Val (Float b) -> Val (Bool (a < b)), store''
        | FPlus, Val (Float a), Val (Float b) -> Val (Float (a +. b)), store''
