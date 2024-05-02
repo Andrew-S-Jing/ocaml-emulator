@@ -220,6 +220,7 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
          | _ ->  raise (EvalError "conditional is expected to be type bool"))
     | Fun (v, x) -> Fun (v, x)
     | FunUnit x -> FunUnit x
+    | FunWild x -> FunWild x
     | Let (v, x, y) ->
         let x' = eval_s' x in
         eval_s' (subst v x' y)
@@ -230,6 +231,7 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
         (match eval_s' x with
          | Unit -> eval_s' y
          | _ -> raise (EvalError "let () expected type unit"))
+    | LetWild (x, y) -> let _wild = eval_s' x in eval_s' y
     | Raise -> raise EvalException
     | Unassigned -> raise (EvalError "Unassigned constructor called")
     | App (f, x) ->
@@ -239,6 +241,7 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
          | FunUnit b ->
              if x' = Unit then eval_s' b
              else raise (EvalError "function app expects type unit")
+         | FunWild b -> eval_s' b
          | _ -> raise (EvalError "function expected of type 'a -> 'b"))
     | List Empty -> List Empty
     | List (Cons (hd, tl)) ->
@@ -324,12 +327,14 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
        | _ -> raise (EvalError "conditional is expected to be of type bool"))
   | Fun (v, x) -> Val (Fun (v, x))
   | FunUnit x -> Val (FunUnit x)
+  | FunWild x -> Val (FunWild x)
   | Let (v, x, y)
   | Letrec (v, x, y) -> eval_d y (Env.extend env v (ref (eval_d' x)))
   | LetUnit (x, y) ->
       (match eval_d' x with
        | Val Unit -> eval_d' y
        | _ -> raise (EvalError "let () expects type unit"))
+  | LetWild (x, y) -> let _wild = eval_d' x in eval_d' y
   | Raise -> raise EvalException
   | Unassigned -> raise (EvalError "evaluated to \"Unassigned\"")
   | App (f, x) ->
@@ -339,6 +344,7 @@ let rec eval_d (exp : expr) (env : Env.env) : Env.value =
        | Val (FunUnit f'), Val unit_ ->
            if unit_ = Unit then eval_d' f'
            else raise (EvalError "Fun app expects type unit")
+       | Val (FunWild f'), _wild -> eval_d' f'
        | Val _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
        | _ -> raise (EvalError "eval_d: unexpected closure in dynamic env"))
   | List Empty -> Val (List Empty)
@@ -454,6 +460,7 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
        | _ -> raise (EvalError "conditional is expected to be of type bool"))
   | Fun (v, x) -> Closure (Fun (v, x), env)
   | FunUnit x -> Closure (FunUnit x, env)
+  | FunWild x -> Closure (FunWild x, env)
   (* Let statement's lexical scoping needs to not be affected by future
      dynamical changes, so the downstream evaluation needs to have different
      value pointers, thus the `Env.copy` result being passed downstream. *)
@@ -470,6 +477,7 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
       (match eval_l' x with
        | Val Unit -> eval_l' y
        | _ -> raise (EvalError "let () expects type unit"))
+  | LetWild (x, y) -> let _wild = eval_l' x in eval_l' y
   | Raise -> raise EvalException
   | Unassigned -> raise (EvalError "evaluated to \"Unassigned\"")
   | App (f, x) ->
@@ -480,6 +488,7 @@ let rec eval_l (exp : expr) (env : Env.env) : Env.value =
        | Closure (FunUnit f', lexical), Val unit_ ->
            if unit_ = Unit then eval_l f' lexical
            else raise (EvalError "Fun app expects type ()")
+       | Closure (FunWild f', lexical), _wild -> eval_l f' lexical
        | Closure _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
        | _ -> raise (Failure "eval_l: expects type \"Fun\" as a closure"))
   | List Empty -> Val (List Empty)
@@ -610,6 +619,7 @@ let rec eval_e (exp : expr)
        | _ -> raise (EvalError "conditional is expected to be of type bool"))
   | Fun (v, x) -> Closure (Fun (v, x), env), store
   | FunUnit x -> Closure (FunUnit x, env), store
+  | FunWild x -> Closure (FunWild x, env), store
   (* Let statement's lexical scoping needs to be isolated from the downstream 
      dynamical changes with different value pointers.
      `Env.copy` creates the dynamical environment to be used downstream. *)
@@ -627,6 +637,9 @@ let rec eval_e (exp : expr)
       (match eval_e' x with
        | Val Unit, store' -> eval_e y env store'
        | _ -> raise (EvalError "let () expects type unit"))
+  | LetWild (x, y) ->
+      let _wild, store' = eval_e' x in
+      eval_e y env store'
   | Raise -> raise EvalException
   | Unassigned -> raise (EvalError "evaluated to \"Unassigned\"")
   | App (f, x) ->
@@ -639,6 +652,7 @@ let rec eval_e (exp : expr)
        | Closure (FunUnit f', lexical), Val unit_ ->
            if unit_ = Unit then eval_e f' lexical store''
            else raise (EvalError "Fun app expects type ()")
+       | Closure (FunWild f', lexical), _wild -> eval_e f' lexical store''
        | Closure _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
        | _ -> raise (Failure "eval_e: expects type \"Fun\" as a closure"))
   | List Empty -> Val (List Empty), store

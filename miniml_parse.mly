@@ -41,6 +41,7 @@
 %token NOSTRING
 %token REF DEREF
 %token ASSIGN
+%token WILD
 
 (* Associativity and precedence *)
 %right SCOLON
@@ -84,6 +85,7 @@ expnoapp: INT                   { Num $1 }
         | LET REC ID EQUALS exp IN exp    { Letrec($3, $5, $7) }
         | FUNCTION ID DOT exp   { Fun($2, $4) }
         | FUNCTION UNIT DOT exp { FunUnit $4 }
+        | FUNCTION WILD DOT exp { FunWild $4 }
         | RAISE                 { Raise }
         | OPEN exp CLOSE        { $2 }
         | UNIT                  { Unit }
@@ -94,7 +96,7 @@ expnoapp: INT                   { Num $1 }
         | exp FPLUS exp         { Binop(FPlus, $1, $3) }
         | exp FMINUS exp        { Binop(FMinus, $1, $3) }
         | exp FTIMES exp        { Binop(FTimes, $1, $3) }
-        | exp FDIVIDE exp        { Binop(FDivide, $1, $3) }
+        | exp FDIVIDE exp       { Binop(FDivide, $1, $3) }
         | FNEG exp              { Unop(FNegate, $2) }
         | exp CONCAT exp        { Binop(Concat, $1, $3) }
         | LET ID fun_construct exp        { Let($2, $3, $4) }
@@ -107,8 +109,9 @@ expnoapp: INT                   { Num $1 }
         | REF exp               { Unop(Ref, $2) }
         | DEREF exp             { Unop(Deref, $2) }
         | exp ASSIGN exp        { Binop(Assign, $1, $3) }
-        | exp SCOLON exp        { LetUnit($1, $3) }
+        | letunit_construct     { $1 }
         | LET UNIT EQUALS exp IN exp      { LetUnit($4, $6) }
+        | LET WILD EQUALS exp IN exp      { LetWild($4, $6) }
 
 list_elt: exp                             { Cons($1, Empty) }
         | exp SCOLON                      { Cons($1, Empty) }
@@ -116,9 +119,13 @@ list_elt: exp                             { Cons($1, Empty) }
         | exp SCOLON list_elt             { Cons($1, $3) }
 
 fun_construct: UNIT EQUALS exp IN         { FunUnit $3 }
+             | WILD EQUALS exp IN         { FunWild $3 }
              | ID EQUALS exp IN           { Fun($1, $3) }
              | UNIT fun_construct         { FunUnit $2 }
+             | WILD fun_construct         { FunWild $2 }
              | ID fun_construct           { Fun($1, $2) }
+
+letunit_construct: exp SCOLON exp         { LetUnit($1, $3) }
 
 ;
 

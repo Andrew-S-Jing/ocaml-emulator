@@ -61,17 +61,16 @@
 }
 
 let digit = ['0'-'9']
-let id = ['a'-'z'] ['a'-'z' 'A'-'Z' '0'-'9']*
+let id = ['a'-'z'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
 let sym =
   ['(' ')' '[' ']']
   | (['$' '&' '*' '+' '-' '/' '=' '<' '>' '^' '.' '~' ';' '!' '?' '%' ':' '#']+)
 let char = ['a'-'z' 'A'-'Z' '0'-'9' ' ']
+let space = [' ' '\t' '\n']
 
 rule token = parse
-  | "()"
-        { UNIT }
-  | "[]"
-        { LEMPTY }
+  | '(' space+ ')'        { UNIT }
+  | '[' space+ ']'        { LEMPTY }
   | digit+ '.' digit+? as ifloat
         { let f = float_of_string ifloat in
           FLOAT f
@@ -80,18 +79,16 @@ rule token = parse
         { let num = int_of_string inum in
           INT num
         }
-  | ''' (char as c) '''
-        { CHAR c }
-  | "\"\""
-        { NOSTRING }
-  | '"' (char+ as s) '"'
-        { STRING s }
+  | ''' (char as c) '''   { CHAR c }
+  | "\"\""                { NOSTRING }
+  | '"' (char+ as s) '"'  { STRING s }
   | id as word
         { try
             let token = Hashtbl.find keyword_table word in
             token 
           with Not_found ->
-            ID word
+            if word.[0] = '_' then WILD
+            else ID word
         }
   | sym as symbol
         { try
@@ -101,8 +98,8 @@ rule token = parse
             printf "Ignoring unrecognized token: %s\n" symbol;
             token lexbuf
         }
-  | '{' [^ '\n']* '}'   { token lexbuf }    (* skip one-line comments *)
-  | [' ' '\t' '\n']     { token lexbuf }    (* skip whitespace *)
+  | '{' [^ '\n']* '}'     { token lexbuf }    (* skip one-line comments *)
+  | space                 { token lexbuf }    (* skip whitespace *)
   | _ as c                                  (* warn & skip unrecognized chars *)
         { printf "Ignoring unrecognized character: %c\n" c;
           token lexbuf

@@ -39,7 +39,7 @@ let repl () =
         let exp = MP.input ML.token lexbuf in 
         
         (* EVALuate it *)
-        let res, store' = Ev.evaluate exp !env !store in
+        let res, _store' = Ev.evaluate exp !env !store in
          
         (* PRINT the result; in this initial version, the trivial
            evaluator just returns the expression unchanged as an
