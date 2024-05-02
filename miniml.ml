@@ -46,9 +46,9 @@ let repl () =
            element of the `Env.value` type (found in `expr.ml`), so we
            just extract the expression back out and print it *)
         match res with
-        | Val resexp ->
+        | Ev.Env.Val resexp ->
            printf "==>\n%s\n" (Ex.exp_to_concrete_string resexp)
-        | Closure (resexp, resenv) ->
+        | Ev.Env.Closure (resexp, resenv) ->
            printf "==>\n%s\n" (Ex.exp_to_concrete_string resexp);
            printf "==>\n%s\n" (Ev.Env.env_to_string resenv);
       with
