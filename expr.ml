@@ -61,7 +61,7 @@ type expr =
   | ClosList of varid list_internal      (* lists of closures (undeclarable) *)
  and 'a list_internal =
    | Empty
-   | Cons of 'a * 'a list_internal
+   | Elt of 'a * 'a list_internal
 ;;
   
 (*......................................................................
@@ -115,7 +115,7 @@ let rec free_vars (exp : expr) : varidset =
   | Unassigned -> SS.empty
   | App (f, x) -> SS.union (free_vars f) (free_vars x)
   | List Empty -> SS.empty
-  | List (Cons (hd, tl)) ->
+  | List (Elt (hd, tl)) ->
       SS.union (free_vars hd) (free_vars (List tl))
   | ClosList _ -> raise (Failure "free_vars: closure in eval_s model") ;;
   
@@ -190,12 +190,12 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
   | Unassigned -> Unassigned
   | App (f, x) -> App (subst' f, subst' x)
   | List Empty -> List Empty
-  | List (Cons (hd, tl)) ->
+  | List (Elt (hd, tl)) ->
       let tl' =
         match subst' (List tl) with
         | List x -> x
         | _ -> raise (Failure "reached impossible branch") in
-      List (Cons (subst' hd, tl'))
+      List (Elt (subst' hd, tl'))
   | ClosList _ -> raise (Failure "subst: closure in eval_s model") ;;
      
 (*......................................................................
@@ -226,10 +226,10 @@ let exp_to_concrete_string (exp : expr) : string =
            | FNegate, Float f -> to_string' (Float ~-.f)
            | Negate, _ -> "~-" ^ to_string' x
            | FNegate, _ -> "~-." ^ to_string' x
-           | Head, List (Cons (hd, _tl)) -> to_string' hd
-           | Head, ClosList (Cons (hd, _tl)) -> "env: " ^ hd
-           | Tail, List (Cons (_hd, tl)) -> to_string' (List tl)
-           | Tail, ClosList (Cons (_hd, tl)) -> to_string' (ClosList tl)
+           | Head, List (Elt (hd, _tl)) -> to_string' hd
+           | Head, ClosList (Elt (hd, _tl)) -> "env: " ^ hd
+           | Tail, List (Elt (_hd, tl)) -> to_string' (List tl)
+           | Tail, ClosList (Elt (_hd, tl)) -> to_string' (ClosList tl)
            | Head, _ -> "head " ^ to_string' x
            | Tail, _ -> "tail " ^ to_string' x
            | Ref, _ -> "ref " ^ to_string' x
@@ -274,11 +274,11 @@ let exp_to_concrete_string (exp : expr) : string =
           parenthensize (String.concat " " [to_string' f; to_string' x])
       | List Empty
       | ClosList Empty -> if is_list then "]" else "[]"
-      | List (Cons (hd, tl)) ->
+      | List (Elt (hd, tl)) ->
           let start, sep = if is_list then "", "; " else "[", "" in
           start ^ sep ^ (to_string' hd)
                 ^ (to_string ~is_list:true tabs (List tl))
-      | ClosList (Cons (hd, tl)) ->
+      | ClosList (Elt (hd, tl)) ->
           let start = if is_list then "" else "[" in
           start ^ "closure: " ^ hd
                 ^ (to_string ~is_list:true tabs (ClosList tl)) in
@@ -345,7 +345,7 @@ let exp_to_abstract_string (exp : expr) : string =
     | App (f, x) -> form "App" [to_string f; to_string x]
     | List Empty -> "List(Empty)"
     | ClosList Empty -> "ClosList(Empty)"
-    | List (Cons (hd, tl)) -> form "List" [to_string hd; to_string (List tl)]
-    | ClosList (Cons (hd, tl)) ->
+    | List (Elt (hd, tl)) -> form "List" [to_string hd; to_string (List tl)]
+    | ClosList (Elt (hd, tl)) ->
         form "ClosList" ["closure: " ^ hd; to_string (ClosList tl)] in
   to_string exp ;;

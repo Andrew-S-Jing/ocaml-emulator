@@ -63,7 +63,7 @@ type expr =
   | ClosList of varid list_internal      (* lists of closures (undeclarable) *)
  and 'a list_internal =
    | Empty
-   | Cons of 'a * 'a list_internal
+   | Elt of 'a * 'a list_internal
 ;;
     
 (*......................................................................

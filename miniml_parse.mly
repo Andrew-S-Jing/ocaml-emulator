@@ -113,10 +113,10 @@ expnoapp: INT                   { Num $1 }
         | LET UNIT EQUALS exp IN exp      { LetUnit($4, $6) }
         | LET WILD EQUALS exp IN exp      { LetWild($4, $6) }
 
-list_elt: exp                             { Cons($1, Empty) }
-        | exp SCOLON                      { Cons($1, Empty) }
-        | exp SCOLON list_elt SCOLON      { Cons($1, $3) }
-        | exp SCOLON list_elt             { Cons($1, $3) }
+list_elt: exp                             { Elt($1, Empty) }
+        | exp SCOLON                      { Elt($1, Empty) }
+        | exp SCOLON list_elt SCOLON      { Elt($1, $3) }
+        | exp SCOLON list_elt             { Elt($1, $3) }
 
 fun_construct: UNIT EQUALS exp IN         { FunUnit $3 }
              | WILD EQUALS exp IN         { FunWild $3 }

@@ -162,8 +162,8 @@ let eval_s (exp : expr) (_env : env) : value =
         (match op, eval_s' x with
          | Negate, Num n -> Num ~-n
          | FNegate, Float f -> Float ~-.f
-         | Head, List (Cons (hd, _tl)) -> hd
-         | Tail, List (Cons (_hd, tl)) -> List tl
+         | Head, List (Elt (hd, _tl)) -> hd
+         | Tail, List (Elt (_hd, tl)) -> List tl
          | Negate, _ -> raise (EvalError "(~-) expects type int")
          | FNegate, _ -> raise (EvalError "(~-.) expects type float")
          | Head, _ -> raise (EvalError "head expects type 'a list")
@@ -186,8 +186,8 @@ let eval_s (exp : expr) (_env : env) : value =
          | FDivide, Float a, Float b -> Float (a /. b)
          | Concat, String a, String b -> String (a ^ b)
          | Cons, a, List Empty ->
-             List (Cons (a, Empty))
-         | Cons, a, List (Cons (b, _) as tl) ->
+             List (Elt (a, Empty))
+         | Cons, a, List (Elt (b, _) as tl) ->
              (match a, b with
               | Unit, Unit
               | Num _, Num _
@@ -197,7 +197,7 @@ let eval_s (exp : expr) (_env : env) : value =
               | String _, String _
               | Fun _, Fun _
               | FunUnit _, FunUnit _
-              | List _, List _ -> List (Cons (a, tl))
+              | List _, List _ -> List (Elt (a, tl))
               | _ -> raise (EvalError "(::) expects type 'a and 'a list"))
          | x, _, _ -> 
              let o, t =
@@ -246,7 +246,7 @@ let eval_s (exp : expr) (_env : env) : value =
          | FunWild b -> eval_s' b
          | _ -> raise (EvalError "function expected of type 'a -> 'b"))
     | List Empty -> List Empty
-    | List (Cons (hd, tl)) ->
+    | List (Elt (hd, tl)) ->
         (match eval_s' (List tl) with
          | List x -> eval_s' (Binop (Cons, hd, List x))
          | _ -> raise (EvalError "Cons should be onto type 'a list"))
@@ -270,8 +270,8 @@ let rec eval_d (exp : expr) (env : env) : value =
       (match op, eval_d' x with
        | Negate, Val (Num n) -> Val (Num ~-n)
        | FNegate, Val (Float f) -> Val (Float ~-.f)
-       | Head, Val (List (Cons (hd, _tl))) -> Val hd
-       | Tail, Val (List (Cons (_hd, tl))) -> Val (List tl)
+       | Head, Val (List (Elt (hd, _tl))) -> Val hd
+       | Tail, Val (List (Elt (_hd, tl))) -> Val (List tl)
        | Negate, _ -> raise (EvalError "(~-) expects type int")
        | FNegate, _ -> raise (EvalError "(~-.) expects type float")
        | Head, _ -> raise (EvalError "head expects type 'a list")
@@ -293,8 +293,8 @@ let rec eval_d (exp : expr) (env : env) : value =
        | FTimes, Val (Float a), Val (Float b) -> Val (Float (a *. b))
        | FDivide, Val (Float a), Val (Float b) -> Val (Float (a /. b))
        | Concat, Val (String a), Val (String b) -> Val (String (a ^ b))
-       | Cons, Val a, Val (List Empty) -> Val (List (Cons (a, Empty)))
-       | Cons, Val a, Val (List (Cons (b, _) as tl)) ->
+       | Cons, Val a, Val (List Empty) -> Val (List (Elt (a, Empty)))
+       | Cons, Val a, Val (List (Elt (b, _) as tl)) ->
            (match a, b with
             | Unit, Unit
             | Num _, Num _
@@ -304,7 +304,7 @@ let rec eval_d (exp : expr) (env : env) : value =
             | String _, String _
             | Fun _, Fun _
             | FunUnit _, FunUnit _
-            | List _, List _ -> Val (List (Cons (a, tl)))
+            | List _, List _ -> Val (List (Elt (a, tl)))
             | _ -> raise (EvalError "(::) expects type 'a and 'a list"))
        | x, _, _ ->
            let o, t =
@@ -350,7 +350,7 @@ let rec eval_d (exp : expr) (env : env) : value =
        | Val _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
        | _ -> raise (EvalError "eval_d: unexpected closure in dynamic env"))
   | List Empty -> Val (List Empty)
-  | List (Cons (hd, tl)) ->
+  | List (Elt (hd, tl)) ->
       (match eval_d' hd, eval_d' (List tl) with
        | Val a, Val (List b) -> eval_d' (Binop (Cons, a, List b))
        | Closure _, _
@@ -376,10 +376,10 @@ let rec eval_l (exp : expr) (env : env) : value =
       (match op, eval_l' x with
        | Negate, Val (Num n) -> Val (Num ~-n)
        | FNegate, Val (Float f) -> Val (Float ~-.f)
-       | Head, Val (List (Cons (hd, _tl))) -> Val hd
-       | Head, Closure (ClosList (Cons (hd, _tl)), e) -> lookup e hd
-       | Tail, Val (List (Cons (_hd, tl))) -> Val (List tl)
-       | Tail, Closure (ClosList (Cons (_hd, tl)), e) ->
+       | Head, Val (List (Elt (hd, _tl))) -> Val hd
+       | Head, Closure (ClosList (Elt (hd, _tl)), e) -> lookup e hd
+       | Tail, Val (List (Elt (_hd, tl))) -> Val (List tl)
+       | Tail, Closure (ClosList (Elt (_hd, tl)), e) ->
            Closure (ClosList tl, e)
        | Negate, _ -> raise (EvalError "(~-) expects type int")
        | FNegate, _ -> raise (EvalError "(~-.) expects type float")
@@ -404,13 +404,13 @@ let rec eval_l (exp : expr) (env : env) : value =
        | Concat, Val (String a), Val (String b) -> Val (String (a ^ b))
        | Cons, Val a, Val (List Empty)
        | Cons, Val a, Closure (ClosList Empty, _) ->
-           Val (List (Cons (a, Empty)))
+           Val (List (Elt (a, Empty)))
        | Cons, Closure a, Val (List Empty)
        | Cons, Closure a, Closure (ClosList Empty, _) ->
            let elt_env = new_varname () in
-           Closure (ClosList (Cons (elt_env, Empty)),
+           Closure (ClosList (Elt (elt_env, Empty)),
                     extend env elt_env (ref (Closure a)))
-       | Cons, Val a, Val (List (Cons (b, _) as tl)) ->
+       | Cons, Val a, Val (List (Elt (b, _) as tl)) ->
            (match a, b with
             | Unit, Unit
             | Num _, Num _
@@ -420,10 +420,10 @@ let rec eval_l (exp : expr) (env : env) : value =
             | String _, String _
             | Fun _, Fun _
             | FunUnit _, FunUnit _
-            | List _, List _ -> Val (List (Cons (a, tl)))
+            | List _, List _ -> Val (List (Elt (a, tl)))
             | _ -> raise (EvalError "(::) expects type 'a and 'a list"))
        | Cons, Closure (a, aenv),
-               Closure (ClosList (Cons (b, _) as tl), benv) ->
+               Closure (ClosList (Elt (b, _) as tl), benv) ->
            (match a, lookup benv b with
             | Unit, Closure (Unit, _)
             | Num _, Closure (Num _, _)
@@ -436,7 +436,7 @@ let rec eval_l (exp : expr) (env : env) : value =
             | List _, Closure (List _, _)
             | ClosList _, Closure (ClosList _, _) ->
                 let elt_env = new_varname () in
-                Closure (ClosList (Cons (elt_env, tl)),
+                Closure (ClosList (Elt (elt_env, tl)),
                          extend env elt_env (ref (Closure (a, aenv))))
             | _ -> raise (EvalError "(::) expects type 'a and 'a list"))
        | x, _, _ ->
@@ -494,7 +494,7 @@ let rec eval_l (exp : expr) (env : env) : value =
        | Closure _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
        | _ -> raise (Failure "eval_l: expects type \"Fun\" as a closure"))
   | List Empty -> Val (List Empty)
-  | List (Cons (hd, tl)) -> eval_l' (Binop (Cons, hd, (List tl)))
+  | List (Elt (hd, tl)) -> eval_l' (Binop (Cons, hd, (List tl)))
   | ClosList _ -> raise (Failure "ClosList is undeclarable")
 
 
@@ -518,10 +518,10 @@ let rec eval_e (exp : expr) (env : env) (store : env) : value * env =
       (match op, x' with
        | Negate, Val (Num n) -> Val (Num ~-n), store'
        | FNegate, Val (Float f) -> Val (Float ~-.f), store'
-       | Head, Val (List (Cons (hd, _tl))) -> Val hd, store'
-       | Head, Closure (ClosList (Cons (hd, _tl)), e) -> lookup e hd, store'
-       | Tail, Val (List (Cons (_hd, tl))) -> Val (List tl), store'
-       | Tail, Closure (ClosList (Cons (_hd, tl)), e) ->
+       | Head, Val (List (Elt (hd, _tl))) -> Val hd, store'
+       | Head, Closure (ClosList (Elt (hd, _tl)), e) -> lookup e hd, store'
+       | Tail, Val (List (Elt (_hd, tl))) -> Val (List tl), store'
+       | Tail, Closure (ClosList (Elt (_hd, tl)), e) ->
            Closure (ClosList tl, e), store'
        | Ref, _ ->
            let refid = new_refname () in
@@ -553,14 +553,14 @@ let rec eval_e (exp : expr) (env : env) (store : env) : value * env =
        | Concat, Val (String a), Val (String b) -> Val (String (a ^ b)), store''
        | Cons, Val a, Val (List Empty)
        | Cons, Val a, Closure (ClosList Empty, _) ->
-           Val (List (Cons (a, Empty))), store''
+           Val (List (Elt (a, Empty))), store''
        | Cons, Closure a, Val (List Empty)
        | Cons, Closure a, Closure (ClosList Empty, _) ->
            let elt_env = new_varname () in
-           Closure (ClosList (Cons (elt_env, Empty)),
+           Closure (ClosList (Elt (elt_env, Empty)),
                      extend env elt_env (ref (Closure a))),
            store''
-       | Cons, Val a, Val (List (Cons (b, _) as tl)) ->
+       | Cons, Val a, Val (List (Elt (b, _) as tl)) ->
            (match a, b with
              | Unit, Unit
              | Num _, Num _
@@ -570,10 +570,10 @@ let rec eval_e (exp : expr) (env : env) (store : env) : value * env =
              | String _, String _
              | Fun _, Fun _
              | FunUnit _, FunUnit _
-             | List _, List _ -> Val (List (Cons (a, tl))), store''
+             | List _, List _ -> Val (List (Elt (a, tl))), store''
              | _ -> raise (EvalError "(::) expects type 'a and 'a list"))
        | Cons, Closure (a, aenv),
-               Closure (ClosList (Cons (b, _) as tl), benv) ->
+               Closure (ClosList (Elt (b, _) as tl), benv) ->
            (match a, lookup benv b with
              | Unit, Closure (Unit, _)
              | Num _, Closure (Num _, _)
@@ -586,7 +586,7 @@ let rec eval_e (exp : expr) (env : env) (store : env) : value * env =
              | List _, Closure (List _, _)
              | ClosList _, Closure (ClosList _, _) ->
                  let elt_env = new_varname () in
-                 Closure (ClosList (Cons (elt_env, tl)),
+                 Closure (ClosList (Elt (elt_env, tl)),
                            extend env elt_env (ref (Closure (a, aenv)))),
                  store''
              | _ -> raise (EvalError "(::) expects type 'a and 'a list"))
@@ -654,7 +654,7 @@ let rec eval_e (exp : expr) (env : env) (store : env) : value * env =
        | Closure _, _ -> raise (EvalError "Fun should be of type \"Fun\"")
        | _ -> raise (Failure "eval_e: expects type \"Fun\" as a closure"))
   | List Empty -> Val (List Empty), store
-  | List (Cons (hd, tl)) -> eval_e' (Binop (Cons, hd, (List tl)))
+  | List (Elt (hd, tl)) -> eval_e' (Binop (Cons, hd, (List tl)))
   | ClosList _ -> raise (Failure "ClosList is undeclarable")
   
 (* Connecting the evaluators to the external world. The REPL in
