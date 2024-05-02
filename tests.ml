@@ -455,3 +455,101 @@ let results_eval_l =
     (*30*) String "asdf";
   ] in
 test_eval Evaluation.eval_l tests_wellformed results_eval_l "eval_l" ;;
+
+(* TESTING: EVAL_E *)
+let test_eval_e tests results str =
+  print_endline ("\nTESTING: " ^ str);
+  let rec test' counter ts ress =
+    match ts, ress with
+    | [], [] -> print_endline ("FINISHED: " ^ str)
+    | [], _
+    | _, [] ->
+        raise (Invalid_argument ("test: unequal test-list lengths for " ^ str))
+    | (name, arg) :: t1, res :: t2 ->
+        print_int counter;
+        print_char ' ';
+        let open Evaluation in
+        let open Env in
+        (if res = Val (String "ManualPass") then unit_test true (name ^ ": ")
+         else
+           let res', _store = eval_e arg (empty ()) (empty ()) in
+           unit_test (res' = res) (name ^ ": "));
+        test' (counter + 1) t1 t2 in
+  test' 1 tests results ;;
+
+let results_eval_e =
+  [
+    (*1*)  Num 1;
+    (*2*)  Bool true;
+    (*3*)  Num ~-1;
+    (*4*)  Num 0;
+    (*5*)  Num 1;
+    (*6*)  Num 2;
+    (*7*)  Num ~-2;
+    (*8*)  Num ~-12;
+    (*9*)  Bool false;
+    (*10*) Bool false;
+    (*11*) Bool true;
+    (*12*) Bool false;
+    (*13*) String "ManualPass";
+    (*14*) Num 5;
+    (*15*) Num 1;
+    (*16*) Num 3;
+    (*17*) Num 3;
+    (*18*) Num 10;
+    (*19*) Num 7;
+    (*20*) Num 2; (* differs here from eval_d *)
+    (*21*) Bool true;
+    (*22*) Bool true;
+
+    (*23*) Unit;
+    (*24*) Float 1.2;
+    (*25*) Float ~-.1.2;
+    (*26*) Char 'a';
+    (*27*) String "asdf";
+    (*28*) Float 2.;
+    (*29*) Float 1.;
+    (*30*) String "asdf";
+  ] in
+let f exp env =
+  let res, _store =
+    Evaluation.eval_e exp env (Evaluation.Env.empty ()) in
+  res in
+test_eval f tests_wellformed results_eval_e "eval_e" ;;
+
+let tests_extended =
+  [
+    (*1*)  "Incr:\n\
+            let x = ref 0 in \
+            x := !x + 1 in \
+            !x",
+            Let ("x", Unop (Ref, Num 0),
+            LetUnit (Binop (Assign,
+                            Var "x",
+                            Binop (Plus, Unop (Deref, Var "x"), Num 1)),
+                     Unop (Deref, Var "x")));
+    (*2*)  "Append:\n\
+            let rec f l1 l2 = \
+              if l1 = [] then l2 \
+              else (head l1) :: (f (tail l1) l2) in \
+            f [1;2;3] [4;5;6]",
+            Letrec ("f", Fun ("l1", Fun ("l2",
+                    Conditional (Binop (Equals, Var "l1", List Empty),
+                                 Var "l2",
+                                 Binop (Cons,
+                                        Unop (Head, Var "l1"),
+                                        App (App (Var "f",
+                                                  Unop (Tail, Var "l1")),
+                                                  Var "l2"))))),
+            App (App (Var "f",
+                      List (Elt (Num 1, Elt (Num 2, Elt (Num 3, Empty))))), List (Elt (Num 4, Elt (Num 5, Elt (Num 6, Empty))))))
+  ] ;;
+
+let results_eval_e =
+  let open Evaluation.Env in
+  [
+    (*1*)  Val (Num 1);
+    (*2*)  Val (List (Elt (Num 1, Elt (Num 2, Elt (Num 3,
+                      Elt (Num 4, Elt (Num 5, Elt (Num 6, Empty))))))))
+  ] in
+test_eval_e tests_extended results_eval_e "eval_e" ;;

@@ -69,8 +69,8 @@ let char = ['a'-'z' 'A'-'Z' '0'-'9' ' ']
 let space = [' ' '\t' '\n']
 
 rule token = parse
-  | '(' space+ ')'        { UNIT }
-  | '[' space+ ']'        { LEMPTY }
+  | '(' space+? ')'        { UNIT }
+  | '[' space+? ']'        { LEMPTY }
   | digit+ '.' digit+? as ifloat
         { let f = float_of_string ifloat in
           FLOAT f
